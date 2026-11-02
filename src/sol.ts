@@ -111,3 +111,40 @@ export function portanceDrainee(d: DonneesPortance): ResultatPortance {
   const q_u = d.c * Nc * ic + d.q * Nq * iq + 0.5 * d.gamma * d.Bp * Ngamma * igamma;
   return { Nq, Nc, Ngamma, iq, ic, igamma, q_u };
 }
+
+/**
+ * Portance drainee en 2e generation, EN 1997-3:2025 formule (5.5) et annexe B.4,
+ * semelle filante sur base et terrain horizontaux : B'/L' = 0, donc s = 1 et
+ * m = m_B = 2, b = g = 1.
+ *
+ * N_gamma = 2 (N_q + 1) tan phi' (B.3), base rugueuse. Les facteurs d'inclinaison
+ * ne font plus intervenir la cohesion : i_q = (1 - T/N)^2 (B.4). Le facteur de
+ * profondeur n'est applique que si `Df` est donne, 5.5.2.1 le limitant au cas
+ * d'une terre au moins aussi resistante au-dessus de la base.
+ */
+export function portanceDrainee2e(d: DonneesPortance & { Df?: number }): ResultatPortance {
+  positif(d.Bp, 'La largeur efficace', 'm');
+  positif(d.V, "L'effort vertical", 'kN/m');
+  positifOuNul(d.H, "L'effort horizontal", 'kN/m');
+  positif(d.phi, "L'angle de frottement de calcul", 'rad');
+  positifOuNul(d.c, 'La cohésion', 'kPa');
+  positif(d.gamma, 'Le poids volumique du sol de fondation', 'kN/m3');
+  positifOuNul(d.q, 'La contrainte au niveau de la base', 'kPa');
+
+  const t = Math.tan(d.phi);
+  const Nq = Math.exp(Math.PI * t) * Math.tan(Math.PI / 4 + d.phi / 2) ** 2;
+  const Nc = (Nq - 1) / t;
+  const Ngamma = 2 * (Nq + 1) * t;
+  const base = Math.max(0, 1 - d.H / d.V);
+  const iq = base ** 2;
+  const igamma = base ** 3;
+  const ic = Math.max(0, iq - (1 - iq) / (Nc * t));
+  let dq = 1;
+  if (d.Df !== undefined && d.Df > 0) {
+    const rapport = d.Df / d.Bp;
+    dq = 1 + 2 * t * (1 - Math.sin(d.phi)) ** 2 * (rapport <= 1 ? rapport : Math.atan(rapport));
+  }
+  const dc = dq - (1 - dq) / (Nc * t);
+  const q_u = d.c * Nc * dc * ic + d.q * Nq * dq * iq + 0.5 * d.gamma * d.Bp * Ngamma * igamma;
+  return { Nq, Nc, Ngamma, iq, ic, igamma, q_u };
+}

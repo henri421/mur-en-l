@@ -17,13 +17,25 @@ export {
   type ProfilMur,
   type ValeurSourcee,
 } from './profil';
-export { kaRankine, phiCalcul, portanceDrainee, pousseeActive, type DonneesPortance, type Poussee, type ResultatPortance } from './sol';
+export {
+  combinaisons2e,
+  profil2eRecommande,
+  verifierProfil2e,
+  type Approche2e,
+  type ClasseConsequences,
+  type Profil2e,
+} from './profil2e';
+export { kaRankine, phiCalcul, portanceDrainee, portanceDrainee2e, pousseeActive, type DonneesPortance, type Poussee, type ResultatPortance } from './sol';
 export {
   contrainteSol,
+  projectionBande,
   verifierMur,
+  verifierMur2e,
   type Armatures,
   type CasBase,
+  type ChargeBande,
   type DonneesMur,
+  type DonneesMur2e,
   type Fondation,
   type GeometrieMur,
   type PortanceSaisie,
