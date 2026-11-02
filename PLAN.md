@@ -19,8 +19,8 @@ les taux, B' et les efforts viennent du résultat.
   2e : (a) + (b) par défaut, (c), (d) ; CC2 par défaut ; case « dimensions contrôlées » (retire la déduction
   de 0,10 m) ; case « compter la profondeur » (facteur d_q). Valeurs recommandées annoncées à l'écran et dans
   la note : aucune annexe nationale belge n'est disponible.
-- **Dessin** : coupe cotée du mur, poussée, résultantes et bras de levier (EQU). Bandes avec flèches de
-  fermeture et leurs deux droites de diffusion.
+- **Dessin** : coupe cotée du mur, poussée, résultantes et bras de levier ; charges réparties fermées par des
+  flèches ; contrainte sous la semelle ; croquis de projection des bandes avec leurs deux droites de diffusion.
 - **Verdicts**, en trois groupes distincts : stabilité externe, sections, dispositions.
 - **Volets** : détail par combinaison, quatre cas de la base, sections.
 - **Note** commune d'aedificium-ui, CSV, SVG, version anglaise sous `/en/` (`textes.ts`). Toute bande saisie
@@ -29,30 +29,68 @@ les taux, B' et les efforts viennent du résultat.
 Hors périmètre v1, annoncé à l'écran : nappe, bêche, talus incliné, cohésion du remblai, butée devant
 le patin, non drainé (saisir q_Rd), états de service (fissuration), stabilité générale.
 
+## Contrat des modules
+
+Les tests lisent ces noms, qui ne se négocient pas.
+
+- `app/src/form.ts` : `Saisie` (`generation`, `approche1`, `approche2`, `consequences`, `dimensionsControlees`,
+  `profondeurComptee`, `Dlower`, `h`, `eHaut`, `eBas`, `es`, `patin`, `talon`, `gammaBeton`, `gamma`, `phi`, `q`,
+  `bandes`, `phiBase`, `deltaSurPhi`, `modePortance`, `qRd`, `c`, `gammaBase`, `D`, `fck`, `fyk`, `a`, `voileArriere`,
+  `voileAvant`, `semelleHaut`, `semelleBas`), `saisieParDefaut`, `lireSaisie` (rend `{ ok, calcul }`), `Calcul`,
+  `verifier`, `aireParMetre`, `serialiser`, `relire`. Format de fichier : `mur-en-l/1`.
+- `app/src/vue.ts` : `verdictsHtml(r)`, `voletsHtml(r)`, `blocEntrees(calcul)`, `blocsResultat(r)`, `messageDErreur(e)`.
+- `app/src/dessin.ts` : `vuesDisponibles(r)`, `phiDeLaVue(r, vue)`, `coupe(calcul, r, vue, options)`, `baseSvg(r, vue)`,
+  `projectionSvg(calcul, phi)`. Classes imposées en tête de `tests/app/dessin.test.ts`.
+- `app/src/note.ts` : `noteDuCalcul(calcul, r, cartouche)`. `app/src/export.ts` : `STYLES_TRACE`.
+- `app/src/textes.ts` : `textes()`, `phrase`.
+
+Dessin et mise en page suivent la maquette, lue par morceaux : saisie lignes 101 à 167, coupe 170 à 280, semelle
+281 à 304, projection 305 à 350, volets 351 à 414, verdicts 415 à 443. Styles lignes 7 à 100.
+
 ## Tâches
 
-| Tâche | Fichiers | Dépendance |
-| --- | --- | --- |
-| T1 | `app/index.html`, `app/src/form.ts`, `app/src/pwa.ts`, `app/src/style.css`, `vite.config.ts` | noyau |
-| T2 | `app/src/vue.ts` : verdicts et volets | T1 |
-| T3 | `app/src/dessin.ts` : coupe et bras de levier | T1 |
-| T4 | `app/src/note.ts`, `app/src/export.ts`, CSV | T2 |
-| T5 | `app/en/index.html`, `app/src/textes.ts` | T4 |
-| T6 | icônes, README, carte et menu du hub, publication | T5 |
+Le gabarit est `../cisaillement-interface/app/` : ne lire que le fichier nommé pour la tâche.
 
-Les tests d'acceptation de T1 à T5 restent à écrire sur le modèle de `cisaillement-interface/tests/app/`,
-et doivent échouer avant l'implémentation.
+| Tâche | Fichiers | Gabarit à lire | Commande (filtre) | Dépend de |
+| --- | --- | --- | --- | --- |
+| T1 | `app/index.html`, `app/src/form.ts`, `app/src/main.ts`, `app/src/pwa.ts`, `app/src/style.css`, `vite.config.ts` | `index.html`, `form.ts`, `main.ts`, `pwa.ts`, `style.css` | `form.test`, puis `page.test` | noyau |
+| T2 | `app/src/vue.ts`, `app/src/textes.ts` | `vue.ts`, `textes.ts` | `vue.test` | T1 |
+| T3 | `app/src/dessin.ts` | aucun : la maquette | `dessin.test` | T1 |
+| T4 | `app/src/note.ts`, `app/src/export.ts` | `note.ts`, `export.ts` | `note.test` | T2, T3 |
+| T5 | `app/en/index.html`, `app/src/textes.ts` | `en/index.html` | `anglais.test` | T4 |
+| T6 | icônes, README, carte et menu du hub, publication | Claude, pas l'exécutant | | T5 |
+
+`page.test` lit `main.ts` tel qu'il sera à la fin : ses tests « main.ts » ne peuvent passer qu'après T4. Il est
+normal que `main.ts` importe des modules encore vides pendant T1 ; les écrire avec leur signature suffit.
 
 ## Commandes
+
+Une tâche (remplacer `form.test` par le filtre du tableau) :
+
+```bash
+export ELECTRON_RUN_AS_NODE=1; "<Code.exe>" ../_banc-local/lancer.mjs . form.test
+```
+
+Tout, puis le typage, à la fin de chaque tâche :
 
 ```bash
 export ELECTRON_RUN_AS_NODE=1; "<Code.exe>" ../_banc-local/lancer.mjs .
 ```
 
-Résultat attendu pour le noyau : tous les tests de `tests/mur.test.ts` et `tests/mur2e.test.ts` réussis.
+```bash
+export ELECTRON_RUN_AS_NODE=1; "<Code.exe>" ../_banc-local/typecheck.mjs .
+```
+
+Résultat attendu à la fin de T5 : tous les tests réussis, 0 erreur de typage.
+
+## Décisions laissées à l'exécutant
+
+Noms internes, découpage des fonctions privées, disposition fine tant que la maquette reste reconnaissable. Pas de
+fond noir, pas d'interface façon tableur.
 
 ## Interdits pour l'exécutant
 
-- Modifier `src/`, `tests/mur.test.ts`, `tests/mur2e.test.ts`, `docs/validation/`, ou un test d'acceptation.
+- Modifier `src/`, `tests/`, `docs/validation/`. Si un test paraît faux, s'arrêter sur cette tâche et le signaler dans
+  `HANDOFF.md`.
 - Calculer dans `app/`.
 - `git push`, `git tag`.

@@ -191,6 +191,8 @@ export interface ResultatCombinaison {
   /** Valeur de calcul de phi' du remblai (degres). */
   phi_d: number;
   mu_d: number;
+  /** Poussees de calcul sur l'ecran virtuel : effort (kN/m) et hauteur depuis la base (m). */
+  pousseesCalcul: { origine: string; nature: 'G' | 'Q'; F: number; z: number }[];
   glissement: { H_d: number; N_d: number; R_d: number; taux: number };
   cas: CasBase[];
   /** Cas de portance le plus sollicite. */
@@ -209,6 +211,8 @@ export interface ResultatMur {
   /** Renversement autour de l'arete du patin. */
   renversement: {
     Ka: number;
+    /** phi' de calcul de la verification (degres). */
+    phi_d: number;
     poussee: Poussee;
     pivot: Renversement;
     taux: number;
@@ -316,27 +320,30 @@ export function projectionBande(a: number, largeur: number, phi: number, H: numb
 /** Part d'une bande qui passe derriere l'ecran virtuel, et sa poussee caracteristique. */
 function pousseesBandes(d: DonneesMur, Ka: number, phi: number) {
   const Ht = d.geometrie.h + d.geometrie.es;
-  const res: { nature: 'G' | 'Q'; P: number; z: number }[] = [];
-  for (const c of d.remblai.charges ?? []) {
+  const res: { indice: number; nature: 'G' | 'Q'; P: number; z: number }[] = [];
+  (d.remblai.charges ?? []).forEach((c, indice) => {
     const loin = c.distance + c.largeur - d.geometrie.talon;
-    if (loin <= 0) continue;
+    if (loin <= 0) return;
     const a = Math.max(0, c.distance - d.geometrie.talon);
     const p = projectionBande(a, loin - a, phi, Ht);
-    if (p) res.push({ nature: c.nature, P: Ka * c.q * (p.z2 - p.z1), z: Ht - (p.z1 + p.z2) / 2 });
-  }
+    if (p) res.push({ indice, nature: c.nature, P: Ka * c.q * (p.z2 - p.z1), z: Ht - (p.z1 + p.z2) / 2 });
+  });
   return res;
 }
 
 /** Part d'une bande posee sur le talon : resultante et abscisse depuis le patin. */
 function bandesSurTalon(d: DonneesMur) {
   const { patin, eBas, talon } = d.geometrie;
-  const res: { nature: 'G' | 'Q'; F: number; x: number }[] = [];
-  for (const c of d.remblai.charges ?? []) {
+  const res: { indice: number; nature: 'G' | 'Q'; F: number; x: number }[] = [];
+  (d.remblai.charges ?? []).forEach((c, indice) => {
     const L = Math.min(c.distance + c.largeur, talon) - c.distance;
-    if (L > 0) res.push({ nature: c.nature, F: c.q * L, x: patin + eBas + c.distance + L / 2 });
-  }
+    if (L > 0) res.push({ indice, nature: c.nature, F: c.q * L, x: patin + eBas + c.distance + L / 2 });
+  });
   return res;
 }
+
+/** La methode de projection n'est pas celle d'une norme : tout resultat avec une bande le dit. */
+const AVERTISSEMENT_BANDES = "Charges en bande : projection par diffusion, méthode usuelle absente de l'EN 1997.";
 
 function jeuEquilibre(j: JeuActions): JeuEquilibre {
   return { gG_dst: j.gG_dst, gG_stb: j.gG_stb, gQ_dst: j.gQ_dst, gQ_stb: j.gQ_stb };
@@ -363,8 +370,8 @@ function donneesEquilibre(d: DonneesMur, p: Poussee, mu: number, phi: number): D
     charges.push(ponctuelle('surcharge sur le talon', 'Q', b.surcharge.x, b.surcharge.z, 0, b.surcharge.F));
     charges.push(ponctuelle('poussée de la surcharge', 'Q', b.B, b.Ht / 2, -p.P_Q, 0));
   }
-  bandesSurTalon(d).forEach((c, i) => charges.push(ponctuelle(`bande ${i + 1} sur le talon`, c.nature, c.x, b.Ht, 0, c.F)));
-  pousseesBandes(d, p.Ka, phi).forEach((c, i) => charges.push(ponctuelle(`poussée de la bande ${i + 1}`, c.nature, b.B, c.z, -c.P, 0)));
+  for (const c of bandesSurTalon(d)) charges.push(ponctuelle(`bande ${c.indice + 1} sur le talon`, c.nature, c.x, b.Ht, 0, c.F));
+  for (const c of pousseesBandes(d, p.Ka, phi)) charges.push(ponctuelle(`poussée de la bande ${c.indice + 1}`, c.nature, b.B, c.z, -c.P, 0));
   return { segments: [], charges, base: { xg: 0, xd: b.B, z: 0 }, mu, profondeur: 1 };
 }
 
@@ -557,6 +564,12 @@ function calculerCombinaison(d: DonneesMur, c: Combinaison, ctx: ContexteSection
   const H_d = gG * poussee.P_G + gQ * poussee.P_Q + pb.reduce((s, x) => s + facteur(x.nature) * x.P, 0);
   const M_H = (gG * poussee.P_G * b.Ht) / 3 + (gQ * poussee.P_Q * b.Ht) / 2 + pb.reduce((s, x) => s + facteur(x.nature) * x.P * x.z, 0);
 
+  const pousseesCalcul: ResultatCombinaison['pousseesCalcul'] = [
+    { origine: 'poussée des terres', nature: 'G', F: gG * poussee.P_G, z: b.Ht / 3 },
+    ...(q > 0 ? [{ origine: 'poussée de la surcharge', nature: 'Q' as const, F: gQ * poussee.P_Q, z: b.Ht / 2 }] : []),
+    ...pb.map((x) => ({ origine: `poussée de la bande ${x.indice + 1}`, nature: x.nature, F: facteur(x.nature) * x.P, z: x.z })),
+  ];
+
   const As = d.armatures;
 
   // Voile : console chargee par la poussee seule, N favorable.
@@ -650,7 +663,7 @@ function calculerCombinaison(d: DonneesMur, c: Combinaison, ctx: ContexteSection
     // Aucun cas n'a de resultante dans la base : les sections ne sont pas calculables.
     throw new Error('La résultante sort de la base dans tous les cas : les sections ne sont pas calculables, revoir la géométrie.');
   }
-  return { nom: c.nom, poussee, phi_d: (phi_d * 180) / Math.PI, mu_d, glissement, cas, portance, voile, patin: patinV, talon: talonV };
+  return { nom: c.nom, poussee, phi_d: (phi_d * 180) / Math.PI, mu_d, pousseesCalcul, glissement, cas, portance, voile, patin: patinV, talon: talonV };
 }
 
 function nombreAffiche(valeur: number): string {
@@ -679,9 +692,10 @@ export function verifierMur(d: DonneesMur, profil: ProfilMur): ResultatMur {
   };
 
   // EQU : jeu propre, phi' divise par son gamma de A.2. Pas de portance ici.
-  const KaE = kaRankine(phiCalcul(d.remblai.phi, profil.EQU.sol.gPhi.valeur));
+  const phiE = phiCalcul(d.remblai.phi, profil.EQU.sol.gPhi.valeur);
+  const KaE = kaRankine(phiE);
   const pE = pousseeActive(b.Ht, d.remblai.gamma, KaE, d.remblai.q);
-  const eqE = verifierEquilibre(donneesEquilibre(d, pE, 0, phiCalcul(d.remblai.phi, profil.EQU.sol.gPhi.valeur)), profilPour(profil.EQU.actions));
+  const eqE = verifierEquilibre(donneesEquilibre(d, pE, 0, phiE), profilPour(profil.EQU.actions));
   const pivot = eqE.renversement[0];
 
   // Excentricite : toutes actions caracteristiques, surcharge comprise.
@@ -695,8 +709,9 @@ export function verifierMur(d: DonneesMur, profil: ProfilMur): ResultatMur {
 
   const avertissements: string[] = [];
   if (!excentricite.noyauCentral) avertissements.push('Résultante caractéristique hors du noyau central (e > B/6) : base partiellement décomprimée.');
+  if (d.remblai.charges?.length) avertissements.push(AVERTISSEMENT_BANDES);
 
-  return conclure('1re', b, { Ka: KaE, poussee: pE, pivot, taux: pivot.taux }, excentricite, res, avertissements);
+  return conclure('1re', b, { Ka: KaE, phi_d: (phiE * 180) / Math.PI, poussee: pE, pivot, taux: pivot.taux }, excentricite, res, avertissements);
 }
 
 /**
@@ -785,8 +800,9 @@ export function verifierMur2e(d: DonneesMur2e, profil: Profil2e): ResultatMur {
     avertissements.push('Excentricité de calcul supérieure à B/3 : revoir les valeurs de calcul des actions et la position du bord de la semelle (EN 1997-3 §5.6.3).');
   }
   if (!d.dimensionsControlees) avertissements.push('Largeur de calcul de la portance réduite de 0,1 m (EN 1997-3 §5.6.3).');
+  if (d.remblai.charges?.length) avertissements.push(AVERTISSEMENT_BANDES);
 
-  return conclure('2e', b, { Ka, poussee: pK, pivot: renv.pivot, taux: renv.pivot.taux, cas: renv.cas }, excentricite, res, avertissements);
+  return conclure('2e', b, { Ka, phi_d: d.remblai.phi, poussee: pK, pivot: renv.pivot, taux: renv.pivot.taux, cas: renv.cas }, excentricite, res, avertissements);
 }
 
 /** Les taux par nature de constat, et le verdict. */

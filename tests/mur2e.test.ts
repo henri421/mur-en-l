@@ -306,6 +306,35 @@ describe('Charges en bande', () => {
     expect(r.glissement.H_d).toBeCloseTo(ra.glissement.H_d + rb.glissement.H_d - 1.35 * 34.68, 6);
   });
 
+  it('les bandes gardent le numero de la saisie, meme si la precedente reste sur le talon', () => {
+    const r = verifierMur2e(sansQ([{ nature: 'G', q: 10, distance: 0.4, largeur: 0.8 }, ...loin]), profil);
+    expect(r.combinaisons[0].pousseesCalcul.map((p) => p.origine)).toEqual(['poussée des terres', 'poussée de la bande 2']);
+    expect(r.renversement.pivot.lignes.some((l) => l.elementaire.origine.includes('poussée de la bande 2'))).toBe(true);
+    expect(r.renversement.pivot.lignes.some((l) => l.elementaire.origine.includes('bande 1 sur le talon'))).toBe(true);
+  });
+
+  it('les poussees de calcul somment a H_d', () => {
+    for (const c of verifierMur2e(sansQ(loin), profil).combinaisons) {
+      expect(c.pousseesCalcul.reduce((s, p) => s + p.F, 0)).toBeCloseTo(c.glissement.H_d, 6);
+    }
+    const r = verifierMur(en1re(mur()), profilRecommande());
+    expect(r.combinaisons[0].pousseesCalcul).toHaveLength(2);
+    expect(r.combinaisons[0].pousseesCalcul[0].F).toBeCloseTo(1.35 * 34.68, 2);
+  });
+
+  it('phi de calcul du renversement, pour la projection', () => {
+    expect(verifierMur2e(mur(), profil).renversement.phi_d).toBe(30);
+    const phi = (Math.atan(Math.tan(Math.PI / 6) / 1.25) * 180) / Math.PI;
+    expect(verifierMur(en1re(mur()), profilRecommande()).renversement.phi_d).toBeCloseTo(phi, 8);
+  });
+
+  it('toute bande fait annoncer que la methode est hors Eurocode, dans les deux generations', () => {
+    const sans = verifierMur2e(mur(), profil).avertissements;
+    expect(sans.some((a) => a.includes('EN 1997.'))).toBe(false);
+    expect(verifierMur2e(sansQ(loin), profil).avertissements.some((a) => a.includes('absente de l'))).toBe(true);
+    expect(verifierMur(en1re(sansQ(loin)), profilRecommande()).avertissements.some((a) => a.includes('absente de l'))).toBe(true);
+  });
+
   it('largeur nulle refusee', () => {
     expect(() => verifierMur2e(sansQ([{ nature: 'G', q: 10, distance: 0, largeur: 0 }]), profil)).toThrow(/largeur/);
   });
