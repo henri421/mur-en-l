@@ -33,3 +33,10 @@ Exécutant arrêté par la limite de tours, tests déjà verts : section écrite
 
 - **Fichiers modifiés** : `app/src/vue.ts`, `app/src/textes.ts`. Claude : `barres` ajouté à `Calcul` dans `form.ts`.
 - **Statut des tests** : `lancer.mjs . vue.test` : 72 réussis, 0 échec ; typage : 0 erreur.
+
+## T3 — Dessins : coupe, semelle, projection
+
+- **Fichiers modifiés** : `app/src/dessin.ts` (créé : `vuesDisponibles`, `phiDeLaVue`, `coupe`, `baseSvg`, `projectionSvg`, `OptionsDessin`), `app/src/textes.ts` (bloc `coupe` en FR et EN), `app/src/style.css` et `STYLES_TRACE` de `app/src/export.ts` (mêmes règles, fin de fichier).
+- **Décisions** : viewBox de largeur fixe 640, échelle x/y unique, marges 110 / 170 ; les textes de cotes et d’efforts passent par `notationSvg` ; `d === null` dans les lignes du pivot est ignoré (pas de bras ni de flèche).
+- **Points douteux** : le libellé `q_max` de la semelle reste un simple nombre avec `kPa`, sans symbole ; la hauteur des bandes qui se chevauchent est décalée par rangées de 18 px, valeur non spécifiée par le brief.
+- **Statut des tests** : `lancer.mjs . dessin.test` : 69 réussis, 0 échec ; `typecheck.mjs .` : 0 erreur (TypeScript 6.0.3).
