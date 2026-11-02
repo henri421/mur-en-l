@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mur en L — stabilité et sections, Eurocodes des deux générations</title>
+    <meta
+      name="description"
+      content="Vérification d’un mur de soutènement en L selon l’Eurocode 7 et l’Eurocode 2, dans leurs deux générations."
+    />
+    <link rel="icon" href="icone.svg" type="image/svg+xml" />
+    <link rel="manifest" href="manifest.webmanifest" />
+  </head>
+  <body>
+    <div class="barre">
+      <div class="barre-corps">
+        <span class="barre-nom">webaedificium</span>
+        <div class="barre-actions">
+          <a class="barre-lien" href="../">Suite</a>
+          <a class="barre-langue" href="en/" lang="en" hreflang="en">EN</a>
+        </div>
+      </div>
+    </div>
+
+    <header>
+      <h1>Mur en L</h1>
+      <p class="sous-titre">
+        Stabilité et sections d’un mur de soutènement en L, Eurocodes des deux générations.
+      </p>
+      <p class="avertissement">
+        Les valeurs recommandées des normes sont utilisées, faute d’annexe nationale belge.
+        Vérifier ces valeurs avant tout usage sur un ouvrage réel.
+      </p>
+    </header>
+
+    <main>
+      <section id="saisie" aria-label="Saisie">
+        <form id="formulaire" autocomplete="off" novalidate>
+          <div class="generations">
+            <button type="button" data-generation="1re" aria-pressed="true">1<sup>re</sup> génération</button>
+            <button type="button" data-generation="2e" aria-pressed="false">2<sup>e</sup> génération</button>
+          </div>
+
+          <fieldset>
+            <legend>Génération et approche</legend>
+
+            <div class="groupe" data-groupe="1re">
+              <label>
+                <span>Approche de calcul</span>
+                <select data-champ="approche1">
+                  <option value="DA1">DA1</option>
+                  <option value="DA2">DA2</option>
+                  <option value="DA3">DA3</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="groupe" data-groupe="2e">
+              <label>
+                <span>Combinaison d’approche</span>
+                <select data-champ="approche2">
+                  <option value="a+b">a + b</option>
+                  <option value="c">c</option>
+                  <option value="d">d</option>
+                </select>
+              </label>
+              <label>
+                <span>Classe de conséquences</span>
+                <select data-champ="consequences">
+                  <option value="CC1">CC1</option>
+                  <option value="CC2">CC2</option>
+                  <option value="CC3">CC3</option>
+                </select>
+              </label>
+              <label class="case">
+                <input type="checkbox" data-champ="dimensionsControlees" />
+                <span>Dimensions contrôlées</span>
+              </label>
+              <label class="case">
+                <input type="checkbox" data-champ="profondeurComptee" />
+                <span>Profondeur d’encastrement comptée</span>
+              </label>
+              <label>
+                <span>Profondeur D<sub>lower</sub> (cm)</span>
+                <input type="text" inputmode="decimal" data-champ="Dlower" />
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Géométrie du mur</legend>
+            <label>
+              <span>Hauteur du mur h (m)</span>
+              <input type="text" inputmode="decimal" data-champ="h" />
+            </label>
+            <label>
+              <span>Épaisseur en tête e<sub>haut</sub> (m)</span>
+              <input type="text" inputmode="decimal" data-champ="eHaut" />
+            </label>
+            <label>
+              <span>Épaisseur en pied e<sub>bas</sub> (m)</span>
+              <input type="text" inputmode="decimal" data-champ="eBas" />
+            </label>
+            <label>
+              <span>Épaisseur de la semelle e<sub>s</sub> (m)</span>
+              <input type="text" inputmode="decimal" data-champ="es" />
+            </label>
+            <label>
+              <span>Longueur du patin (m)</span>
+              <input type="text" inputmode="decimal" data-champ="patin" />
+            </label>
+            <label>
+              <span>Longueur du talon (m)</span>
+              <input type="text" inputmode="decimal" data-champ="talon" />
+            </label>
+            <label>
+              <span>Poids volumique du béton γ<sub>béton</sub> (kN/m³)</span>
+              <input type="text" inputmode="decimal" data-champ="gammaBeton" />
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Remblai</legend>
+            <label>
+              <span>Poids volumique du remblai γ (kN/m³)</span>
+              <input type="text" inputmode="decimal" data-champ="gamma" />
+            </label>
+            <label>
+              <span>Angle de frottement interne φ’<sub>k</sub> (°)</span>
+              <input type="text" inputmode="decimal" data-champ="phi" />
+            </label>
+            <label>
+              <span>Surcharge uniforme q (kN/m²)</span>
+              <input type="text" inputmode="decimal" data-champ="q" />
+            </label>
+            <label>
+              <span>Part de K<sub>a</sub> (%), le reste en K<sub>0</sub></span>
+              <input type="text" inputmode="decimal" data-champ="partKa" />
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Charges en bande</legend>
+            <div class="defilement">
+              <table class="bandes">
+                <thead>
+                  <tr>
+                    <th scope="col">Nature</th>
+                    <th scope="col">q (kN/m²)</th>
+                    <th scope="col">Distance (m)</th>
+                    <th scope="col">Largeur (m)</th>
+                    <th scope="col"><span class="clause">Retirer</span></th>
+                  </tr>
+                </thead>
+                <tbody data-role="bandes"></tbody>
+              </table>
+            </div>
+            <div class="boutons">
+              <button type="button" data-action="ajouter-bande">Ajouter une bande</button>
+            </div>
+            <p class="note">
+              Une bande est une charge répartie de largeur finie, définie par sa distance à l’écran
+              et sa largeur. Les charges permanentes sont notées G et les charges variables Q.
+            </p>
+          </fieldset>
+
+          <fieldset>
+            <legend>Fondation</legend>
+            <label>
+              <span>Angle de frottement interne du sol d’assise φ’<sub>k</sub> (°)</span>
+              <input type="text" inputmode="decimal" data-champ="phiBase" />
+            </label>
+            <label>
+              <span>Rapport δ<sub>k</sub> sur φ’<sub>k</sub></span>
+              <input type="text" inputmode="decimal" data-champ="deltaSurPhi" />
+            </label>
+            <label>
+              <span>Mode de portance</span>
+              <select data-champ="modePortance">
+                <option value="annexeD" data-portance="annexeD">Annexe D</option>
+                <option value="saisie" data-portance="saisie">Saisie directe</option>
+              </select>
+            </label>
+
+            <div class="groupe" data-portance-groupe="annexeD">
+              <label>
+                <span>Cohésion du sol d’assise c’<sub>k</sub> (kPa)</span>
+                <input type="text" inputmode="decimal" data-champ="c" />
+              </label>
+              <label>
+                <span>Poids volumique du sol d’assise γ (kN/m³)</span>
+                <input type="text" inputmode="decimal" data-champ="gammaBase" />
+              </label>
+              <label>
+                <span>Profondeur d’encastrement D (m)</span>
+                <input type="text" inputmode="decimal" data-champ="D" />
+              </label>
+            </div>
+
+            <div class="groupe" data-portance-groupe="saisie">
+              <label>
+                <span>Résistance de calcul q<sub>Rd</sub> (kPa)</span>
+                <input type="text" inputmode="decimal" data-champ="qRd" />
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Armatures</legend>
+            <label>
+              <span>Résistance du béton f<sub>ck</sub> (MPa)</span>
+              <input type="text" inputmode="decimal" data-champ="fck" />
+            </label>
+            <label>
+              <span>Limite d’élasticité de l’acier f<sub>yk</sub> (MPa)</span>
+              <input type="text" inputmode="decimal" data-champ="fyk" />
+            </label>
+            <label>
+              <span>Enrobage nominal a (mm)</span>
+              <input type="text" inputmode="decimal" data-champ="a" />
+            </label>
+
+            <label>
+              <span>Voile arrière, diamètre (mm)</span>
+              <input type="text" inputmode="decimal" data-champ="voileArriere.diametre" />
+            </label>
+            <label>
+              <span>Voile arrière, espacement (mm)</span>
+              <input type="text" inputmode="decimal" data-champ="voileArriere.espacement" />
+            </label>
+            <label>
+              <span>Voile avant, diamètre (mm)</span>
+              <input type="text" inputmode="decimal" data-champ="voileAvant.diametre" />
+            </label>
+            <label>
+              <span>Voile avant, espacement (mm)</span>
+              <input type="text" inputmode="decimal" data-champ="voileAvant.espacement" />
+            </label>
+            <label>
+              <span>Semelle en haut, diamètre (mm)</span>
+              <input type="text" inputmode="decimal" data-champ="semelleHaut.diametre" />
+            </label>
+            <label>
+              <span>Semelle en haut, espacement (mm)</span>
+              <input type="text" inputmode="decimal" data-champ="semelleHaut.espacement" />
+            </label>
+            <label>
+              <span>Semelle en bas, diamètre (mm)</span>
+              <input type="text" inputmode="decimal" data-champ="semelleBas.diametre" />
+            </label>
+            <label>
+              <span>Semelle en bas, espacement (mm)</span>
+              <input type="text" inputmode="decimal" data-champ="semelleBas.espacement" />
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Hors périmètre</legend>
+            <p class="note">
+              Ne sont pas traités par cet outil la nappe phréatique, la bêche, le talus incliné,
+              la cohésion du remblai, la butée devant le patin, le calcul non drainé, les états de
+              service (fissuration) et la stabilité générale du site.
+            </p>
+          </fieldset>
+
+          <p class="avertissement">
+            Sans annexe nationale, les valeurs recommandées des normes sont retenues.
+          </p>
+
+          <div class="boutons">
+            <button type="button" data-action="reinitialiser">Réinitialiser</button>
+          </div>
+        </form>
+      </section>
+
+      <div class="colonne">
+        <section id="sorties" aria-label="Résultats">
+          <h2>Résultats</h2>
+          <p class="erreur" data-role="erreur" hidden></p>
+          <div class="boutons" data-role="vues"></div>
+          <div data-role="verdicts"></div>
+          <div data-role="volets"></div>
+        </section>
+
+        <section aria-label="Coupe">
+          <h2>Coupe</h2>
+          <div class="boutons">
+            <label class="case">
+              <input type="checkbox" data-option="cotes" />
+              <span>Cotes</span>
+            </label>
+            <label class="case">
+              <input type="checkbox" data-option="bras" />
+              <span>Bras de levier</span>
+            </label>
+          </div>
+          <div data-role="coupe"></div>
+          <div data-role="base"></div>
+          <div data-role="projection"></div>
+        </section>
+
+        <section aria-label="Exports">
+          <h2>Exports</h2>
+          <label>
+            <span>Projet</span>
+            <input type="text" data-role="projet" />
+          </label>
+          <label>
+            <span>Élément</span>
+            <input type="text" data-role="element" />
+          </label>
+          <div class="boutons">
+            <button type="button" data-action="exporter-note">Note de calcul</button>
+            <button type="button" data-action="exporter-coupe">Coupe SVG</button>
+            <button type="button" data-action="exporter-resultats">Résultats CSV</button>
+            <button type="button" data-action="enregistrer">Enregistrer la saisie</button>
+          </div>
+          <label>
+            <span>Ouvrir une saisie enregistrée</span>
+            <input type="file" data-role="ouvrir" accept=".json,application/json" />
+          </label>
+          <p class="note">
+            La saisie est conservée dans ce navigateur. Les fichiers ouverts sont lus localement,
+            sans envoi sur le réseau.
+          </p>
+        </section>
+      </div>
+    </main>
+
+    <footer>
+      <p>Mur en L · outil local de vérification · Eurocode 7 et Eurocode 2.</p>
+    </footer>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
