@@ -17,7 +17,9 @@ const FR = {
   coupe: {
     ecranVirtuel: 'écran virtuel',
     noyauCentral: 'noyau central',
-    linearite: 'linéaire : pour les sections',
+    linearite: "linéaire : pour les sections ; rectangle sur B' : pour la portance",
+    pivot: 'pivot',
+    noyauEpais: 'trait épais : noyau central',
     methodeCourante: 'Méthode courante : l’EN 1997 ne traite que la surcharge uniforme.',
   },
   note: {
@@ -180,7 +182,9 @@ const EN: Textes = {
   coupe: {
     ecranVirtuel: 'virtual screen',
     noyauCentral: 'central core',
-    linearite: 'linear: for sections',
+    linearite: "linear: for sections; rectangle over B': for bearing",
+    pivot: 'pivot',
+    noyauEpais: 'thick line: central core',
     methodeCourante: 'Common method: EN 1997 covers only uniform surcharge.',
   },
   note: {
