@@ -131,6 +131,73 @@ describe('charges reparties : fermees par des fleches, a l echelle', () => {
   });
 });
 
+describe('fleches et symboles', () => {
+  const lignes = (svg: string): string[] => [...svg.matchAll(/<line\b[^>]*>/g)].map((m) => m[0]);
+
+  it('toute fleche de charge, de poussee, de poids ou de pression a sa pointe', () => {
+    const { calcul, r } = calculer(avecBandes({ q: '10' }));
+    const svgs = [
+      ...vuesDisponibles(r).map((v) => coupe(calcul, r, v, OPTIONS)),
+      ...vuesDisponibles(r).map((v) => baseSvg(r, v)),
+      projectionSvg(calcul, 30),
+    ];
+    let vues = 0;
+    for (const svg of svgs) {
+      for (const l of lignes(svg).filter((x) => /class="(fleche|fleche-pression|poussee|poids|resultante)\b/.test(x))) {
+        expect(l).toContain('marker-end="url(#ml-');
+        vues++;
+      }
+      for (const id of [...svg.matchAll(/url\(#(ml-\w+)\)/g)].map((m) => m[1])) expect(svg).toContain(`id="${id}"`);
+    }
+    expect(vues).toBeGreaterThan(20);
+  });
+
+  it('la poussee d une charge variable est tiretee, celle d une permanente non', () => {
+    const { calcul, r } = calculer(avecBandes({ q: '10' }));
+    const svg = coupe(calcul, r, r.combinaisons[0].nom, OPTIONS);
+    expect(balises(svg, 'line', 'poussee').filter((l) => l.includes('variable')).length).toBeGreaterThan(0);
+    expect(balises(svg, 'line', 'poussee').filter((l) => !l.includes('variable')).length).toBeGreaterThan(0);
+  });
+
+  it('un poids de calcul nul n est pas dessine ; chaque poids a son symbole', () => {
+    const t = texteVisible(dessin(saisieParDefaut()));
+    expect(t).not.toMatch(/W\S* = 0 kN/);
+    for (const s of ['Wv', 'Ws', 'Wt']) expect(t.replace(/_/g, '')).toContain(s);
+  });
+
+  it('le remblai ne passe pas devant le voile', () => {
+    const svg = dessin({ ...saisieParDefaut(), D: '0' });
+    const semelle = balises(svg, 'rect', 'semelle')[0];
+    const terrains = balises(svg, 'rect', 'terrain');
+    expect(terrains).toHaveLength(1);
+    expect(attribut(terrains[0], 'x')).toBeGreaterThan(attribut(semelle, 'x'));
+  });
+
+  it('sans option, pas de marge vide sous le mur', () => {
+    const haut = (svg: string): number => Number(/viewBox="0 0 640 ([\d.]+)"/.exec(svg)?.[1]);
+    expect(haut(dessin(saisieParDefaut(), undefined, { cotes: false, bras: false }))).toBeLessThan(haut(dessin(saisieParDefaut())) - 40);
+  });
+});
+
+describe('sous la semelle : valeurs', () => {
+  it('R_d en kN, ramenee a B prime en kPa', () => {
+    const r = calculer(saisieParDefaut()).r;
+    const c = r.combinaisons[1];
+    const t = texteVisible(baseSvg(r, c.nom));
+    expect(t).toContain(`${nombreAffiche(c.portance.R_d, 1)} kN`);
+    expect(t).toContain(`${nombreAffiche(c.portance.R_d / c.portance.Bp, 1)} kPa`);
+    expect(t).toContain(`${nombreAffiche(c.portance.V / c.portance.Bp, 1)} kPa`);
+  });
+
+  it('la contrainte minimale n est pas dessinee a zero', () => {
+    const r = calculer(saisieParDefaut()).r;
+    const svg = baseSvg(r, 'DA1-2');
+    const points = /class="contrainte" points="([^"]*)"/.exec(svg)?.[1].trim().split(' ') ?? [];
+    const yDroite = Number(points[points.length - 2].split(',')[1]);
+    expect(yDroite).toBeGreaterThan(80.5);
+  });
+});
+
 describe('sous la semelle', () => {
   it('une combinaison : V, B prime, resistance', () => {
     const r = calculer(saisieParDefaut()).r;
@@ -195,6 +262,11 @@ describe('projection des bandes', () => {
     expect(t).toContain(nombreAffiche(p?.z1 as number, 2));
     expect(t).toContain(nombreAffiche(p?.z2 as number, 2));
     expect(t).toContain("EN 1997");
+  });
+
+  it('une bande proche de l ecran n etire pas le dessin', () => {
+    const svg = projectionSvg(calculer(seule('1,6', '0,1')).calcul, 30);
+    expect(Number(/viewBox="0 0 640 ([\d.]+)"/.exec(svg)?.[1])).toBeLessThan(420);
   });
 
   it('une diffusion qui passe sous l ecran ne casse rien', () => {

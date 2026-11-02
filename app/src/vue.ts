@@ -105,10 +105,12 @@ export function verdictsHtml(r: ResultatMur): string {
       `<div class="deux">` +
       `<div><div class="jauge"><i style="width:${largeur(vf.tauxFlexion)}%"></i></div>` +
       `<span class="taux">${tauxAffiche(vf.tauxFlexion)}</span>` +
-      `<p>${t.noms.flexion} · ${phrase(vf.casFlexion)}</p></div>` +
+      `<p>${sym('M_Ed')} = ${aff(vf.M_Ed, 1)} ${t.unités.kNm} ≤ ${sym('M_Rd')} = ${aff(vf.M_Rd, 1)} ${t.unités.kNm}</p>` +
+      `<p class="clause">${t.noms.flexion} · ${phrase(vf.casFlexion)}</p></div>` +
       `<div><div class="jauge"><i style="width:${largeur(vt.tauxTranchant)}%"></i></div>` +
       `<span class="taux">${tauxAffiche(vt.tauxTranchant)}</span>` +
-      `<p>${t.noms.tranchant} · ${phrase(vt.casTranchant)}</p></div>` +
+      `<p>${sym('V_Ed')} = ${aff(vt.V_Ed, 1)} ${t.unités.kN} ≤ ${sym('V_Rd,c')} = ${aff(vt.V_Rd_c, 1)} ${t.unités.kN}</p>` +
+      `<p class="clause">${t.noms.tranchant} · ${phrase(vt.casTranchant)}</p></div>` +
       `</div></div>`
     );
   }).join('');
@@ -149,7 +151,7 @@ export function voletsHtml(r: ResultatMur): string {
       const p = c.portance;
       return (
         `<tr><td>${phrase(c.nom)}</td>` +
-        `<td class="n">${aff(c.phi_d, 3)}</td>` +
+        `<td class="n">${aff(c.phi_d, 1)}</td>` +
         `<td class="n">${aff(g.H_d, 1)}</td>` +
         `<td class="n">${aff(g.N_d, 1)}</td>` +
         `<td class="n">${aff(c.mu_d, 3)}</td>` +

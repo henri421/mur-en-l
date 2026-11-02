@@ -38,6 +38,7 @@ export type Calcul = {
       q: number;
       charges?: readonly Bande[];
     };
+    fondation?: { portance?: { mode: string; D?: number } };
   };
   barres: unknown;
 };
@@ -74,13 +75,54 @@ export function phiDeLaVue(r: ResultatMur, vue: string): number {
   return c ? c.phi_d : r.renversement.phi_d;
 }
 
+/** Les pointes de fleches et le sol d'assise, partages par les dessins. */
+const DEFS =
+  `<defs>` +
+  `<pattern id="ml-sol" width="8" height="8" patternUnits="userSpaceOnUse"><path class="hachure" d="M0 8L8 0"/></pattern>` +
+  [['tr', 'tete-traction'], ['co', 'tete-compression'], ['ne', 'tete-neutre']]
+    .map(([id, c]) => `<marker id="ml-${id}" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path class="${c}" d="M0 0L10 5L0 10z"/></marker>`)
+    .join('') +
+  `<marker id="ml-tc" viewBox="0 0 8 8" refX="4" refY="4" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path class="tete-cote" d="M1 7L7 1"/></marker>` +
+  `</defs>`;
+
+const POINTE_TRACTION = 'marker-end="url(#ml-tr)"';
+const POINTE_COMPRESSION = 'marker-end="url(#ml-co)"';
+const POINTE_NEUTRE = 'marker-end="url(#ml-ne)"';
+const TRAITS = 'marker-start="url(#ml-tc)" marker-end="url(#ml-tc)"';
+
+/** Symbole d'une poussee de calcul, d'apres son origine dans le noyau. */
+function symbolePoussee(origine: string): string {
+  if (origine.includes('terres')) return 'P_G,d';
+  if (origine.includes('surcharge')) return 'P_Q,d';
+  const n = /(\d+)/.exec(origine)?.[1];
+  return n ? `P_b${n},d` : 'P_d';
+}
+
+/** Symbole d'un poids, d'apres son origine dans le noyau. */
+function symbolePoids(origine: string): string {
+  if (origine.includes('voile') && origine.includes('fruit')) return 'W_f';
+  if (origine.includes('voile')) return 'W_v';
+  if (origine.includes('semelle')) return 'W_s';
+  if (origine.includes('terres')) return 'W_t';
+  if (origine.includes('surcharge')) return 'W_q';
+  const n = /(\d+)/.exec(origine)?.[1];
+  return n ? `W_b${n}` : 'W';
+}
+
+/** Une poussee variable est tiretee, comme sa charge. */
+function pousseeVariable(origine: string, bandes: readonly Bande[]): boolean {
+  if (origine.includes('surcharge')) return true;
+  const n = /(\d+)/.exec(origine)?.[1];
+  return n ? bandes[Number(n) - 1]?.nature === 'Q' : false;
+}
+
 /** Fleches verticales d'une charge repartie, entre la ligne haute et le sol. */
 function flechesReparties(x1: number, x2: number, yHaut: number, yBas: number): string {
   const traits: string[] = [];
   for (let i = 0; i < 5; i++) {
     const x = x1 + ((x2 - x1) * i) / 4;
     traits.push(
-      `<line class="fleche" x1="${attr(x)}" y1="${attr(yHaut)}" x2="${attr(x)}" y2="${attr(yBas)}"/>`,
+      `<line class="fleche" x1="${attr(x)}" y1="${attr(yHaut)}" x2="${attr(x)}" y2="${attr(yBas - 1)}" ${POINTE_NEUTRE}/>`,
     );
   }
   return traits.join('');
@@ -125,34 +167,52 @@ export function coupe(calcul: Calcul, r: ResultatMur, vue: string, options: Opti
     utile = Math.max(utile, g.patin + g.eBas + b.distance + b.largeur);
   }
   const margeG = 110;
-  const margeD = 170;
+  const margeD = 190;
   const echelle = (LARGEUR - margeG - margeD) / Math.max(utile, 0.1);
 
-  const lignesPivot = r.renversement.pivot.lignes;
-  const nBras = estPremiere ? lignesPivot.length : 0;
+  const pivot = r.renversement.pivot.lignes;
+  // Les poids reellement pris en compte : un poids de calcul nul n'a rien a montrer.
+  const poids = estPremiere ? pivot.filter((l) => l.role === 'stabilisant' && l.d !== null && l.gamma * l.F > 0) : [];
+  const pousseesVue = estPremiere
+    ? pivot
+        .filter((l) => l.elementaire.origine.includes('poussée') && l.d !== null)
+        .map((l) => ({ origine: l.elementaire.origine, F: l.gamma * l.F, z: l.d as number }))
+    : (comb?.pousseesCalcul ?? []);
+
   const margeHaut = 54 + Math.max(1, bandes.length) * 18;
-  const margeBas = 54 + nBras * 16;
+  const margeBas = 26 + (options.cotes ? 28 : 0) + (options.bras && estPremiere ? poids.length * 16 + 8 : 0);
   const hauteur = margeHaut + (g.h + g.es) * echelle + margeBas;
 
   const x = (metre: number): number => margeG + metre * echelle;
   const y = (metre: number): number => margeHaut + metre * echelle;
   const x0 = margeG;
   const xEcran = x(totale);
+  const xDroite = x(utile);
   const ySol = y(0);
   const yHautSemelle = y(g.h);
   const yBas = y(g.h + g.es);
+  const Ht = g.h + g.es;
 
   const morceaux: string[] = [];
 
   morceaux.push(
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${LARGEUR} ${attr(hauteur)}" role="img" aria-label="${tx('Coupe du mur en L')}">`,
+    DEFS,
   );
 
-  // Sol et terrains.
+  // Remblai derriere le voile, sol devant le patin sur D, assise sous la base.
+  const D = Math.min(Math.max(0, Number(calcul.donnees.fondation?.portance?.D ?? 0)) || 0, Ht);
   morceaux.push(
-    `<rect class="terrain" x="${attr(x0)}" y="${attr(ySol)}" width="${attr(xEcran - x0)}" height="${attr(g.h * echelle)}"/>`,
-    `<line class="surface" x1="${attr(x0)}" y1="${attr(ySol)}" x2="${attr(xEcran)}" y2="${attr(ySol)}"/>`,
+    `<rect class="terrain" x="${attr(x(g.patin))}" y="${attr(ySol)}" width="${attr(xDroite - x(g.patin))}" height="${attr(yBas - ySol)}"/>`,
+    `<line class="surface" x1="${attr(x(g.patin))}" y1="${attr(ySol)}" x2="${attr(xDroite)}" y2="${attr(ySol)}"/>`,
+    `<rect fill="url(#ml-sol)" x="${attr(x0 - 40)}" y="${attr(yBas)}" width="${attr(xDroite - x0 + 40)}" height="9"/>`,
   );
+  if (D > 0) {
+    morceaux.push(
+      `<rect class="terrain" x="${attr(x0 - 40)}" y="${attr(yBas - D * echelle)}" width="${attr(x(g.patin) - x0 + 40)}" height="${attr(D * echelle)}"/>`,
+      `<line class="surface" x1="${attr(x0 - 40)}" y1="${attr(yBas - D * echelle)}" x2="${attr(x(g.patin))}" y2="${attr(yBas - D * echelle)}"/>`,
+    );
+  }
 
   // Voile et semelle.
   morceaux.push(
@@ -160,10 +220,11 @@ export function coupe(calcul: Calcul, r: ResultatMur, vue: string, options: Opti
     `<polygon class="voile" points="${attr(x(g.patin))},${attr(ySol)} ${attr(x(g.patin + g.eHaut))},${attr(ySol)} ${attr(x(g.patin + g.eBas))},${attr(yHautSemelle)} ${attr(x(g.patin))},${attr(yHautSemelle)}"/>`,
   );
 
-  // Ecran virtuel au droit du talon.
+  // Ecran virtuel au droit du talon ; son nom passe sous la surface si une bande le survole.
+  const survole = bandes.some((b) => b.distance + b.largeur > g.talon);
   morceaux.push(
     `<line class="ecran" x1="${attr(xEcran)}" y1="${attr(ySol)}" x2="${attr(xEcran)}" y2="${attr(yBas)}"/>`,
-    `<text class="etiquette" x="${attr(xEcran + 6)}" y="${attr(ySol - 6)}">${tx(textes().coupe.ecranVirtuel)}</text>`,
+    `<text class="etiquette" x="${attr(xEcran + 6)}" y="${attr(survole ? ySol + 14 : ySol - 6)}">${tx(textes().coupe.ecranVirtuel)}</text>`,
   );
 
   // Surcharge uniforme, de l'arriere du voile a l'ecran virtuel.
@@ -171,7 +232,7 @@ export function coupe(calcul: Calcul, r: ResultatMur, vue: string, options: Opti
     const ySurcharge = ySol - 22;
     morceaux.push(
       chargeRepartie('Q', x(g.patin + g.eBas), xEcran, ySurcharge, ySol),
-      `<text class="etiquette" x="${attr((x(g.patin + g.eBas) + xEcran) / 2)}" y="${attr(ySurcharge - 8)}" text-anchor="middle">q = ${nb(remblai.q, 1)} kPa</text>`,
+      `<text class="etiquette" x="${attr(x(g.patin + g.eBas) - 6)}" y="${attr(ySurcharge + 4)}" text-anchor="end">q = ${nb(remblai.q, 1)} kPa</text>`,
     );
   }
 
@@ -189,77 +250,127 @@ export function coupe(calcul: Calcul, r: ResultatMur, vue: string, options: Opti
       i++;
     }
   };
-  for (const b of bandes) {
+  bandes.forEach((b, i) => {
     const bx1 = x(g.patin + g.eBas + b.distance);
     const bx2 = bx1 + b.largeur * echelle;
     const rangee = placer(bx1, bx2);
     const yBande = ySol - 34 - rangee * 18;
     morceaux.push(
       chargeRepartie(b.nature, bx1, bx2, yBande, ySol),
-      `<text class="etiquette" x="${attr(bx1)}" y="${attr(yBande - 6)}">${nb(b.q, 1)} kPa</text>`,
+      `<text class="etiquette" x="${attr(bx1)}" y="${attr(yBande - 6)}">${tx(`b${i + 1} : ${b.nature === 'Q' ? 'Q' : 'G'} = ${nb(b.q, 1)} kPa`)}</text>`,
+    );
+  });
+
+  // Diagramme de poussee : surcharge uniforme, puis terres triangulaires a sa suite.
+  const pG = pousseesVue.filter((p) => p.origine.includes('terres')).reduce((s, p) => s + (2 * p.F) / Ht, 0);
+  const pQ = pousseesVue.filter((p) => p.origine.includes('surcharge')).reduce((s, p) => s + p.F / Ht, 0);
+  const largeurDiagramme = 90;
+  const kDiagramme = pG + pQ > 0 ? largeurDiagramme / (pG + pQ) : 0;
+  const lQ = pQ * kDiagramme;
+  const lG = pG * kDiagramme;
+  if (lQ > 0) {
+    morceaux.push(
+      `<rect class="diagramme variable" x="${attr(xEcran)}" y="${attr(ySol)}" width="${attr(lQ)}" height="${attr(yBas - ySol)}"/>`,
+    );
+  }
+  if (lG > 0) {
+    morceaux.push(
+      `<polygon class="diagramme" points="${attr(xEcran + lQ)},${attr(ySol)} ${attr(xEcran + lQ + lG)},${attr(yBas)} ${attr(xEcran + lQ)},${attr(yBas)}"/>`,
+      `<text class="valeur-traction" x="${attr(xEcran + 4)}" y="${attr(yBas + 22)}">${nb(pG + pQ, 1)} kPa</text>`,
     );
   }
 
-  // Poussees.
+  // Poussees : chaque effort a sa hauteur, les etiquettes trop proches s'ecartent.
+  const queue = (i: number): number => Math.min(xEcran + 122 + i * 14, LARGEUR - 8);
+  const ordre = pousseesVue
+    .map((p, i) => ({ ...p, i, yP: yBas - p.z * echelle }))
+    .sort((a, b) => a.yP - b.yP);
+  let yTexte = -Infinity;
+  for (const p of ordre) {
+    yTexte = Math.max(yTexte + 15, p.yP - 5);
+    const variable = pousseeVariable(p.origine, bandes);
+    morceaux.push(
+      `<line class="poussee${variable ? ' variable' : ''}" x1="${attr(queue(p.i))}" y1="${attr(p.yP)}" x2="${attr(xEcran + 1)}" y2="${attr(p.yP)}" ${POINTE_TRACTION}/>`,
+      `<text class="force-traction" x="${attr(queue(p.i) - 4)}" y="${attr(yTexte)}" text-anchor="end">${tx(`${symbolePoussee(p.origine)} = ${nb(p.F, 1)} kN`)}</text>`,
+    );
+  }
+
+  // Poids : la fleche part du haut de son bloc ; voile a gauche, le reste a droite.
+  let empile = 0;
+  for (const l of poids) {
+    const nom = symbolePoids(l.elementaire.origine);
+    const xP = x(l.d as number);
+    const dansVoile = nom === 'W_v' || nom === 'W_f';
+    const dansSemelle = nom === 'W_s';
+    const yDebut = dansSemelle
+      ? yHautSemelle - 34
+      : dansVoile
+        ? ySol + (yHautSemelle - ySol) * (nom === 'W_v' ? 0.3 : 0.48)
+        : ySol + (yHautSemelle - ySol) * 0.28 + empile * 18;
+    const yFin = dansSemelle ? yBas - 6 : yDebut + Math.min(70, (yHautSemelle - ySol) * 0.3);
+    morceaux.push(
+      `<line class="poids" x1="${attr(xP)}" y1="${attr(yDebut)}" x2="${attr(xP)}" y2="${attr(yFin)}" ${POINTE_COMPRESSION}/>`,
+      dansVoile
+        ? `<text class="force-compression" x="${attr(xP - 26)}" y="${attr(yDebut + 12)}" text-anchor="end">${tx(`${nom} = ${nb(l.gamma * l.F, 1)} kN`)}</text>`
+        : `<text class="force-compression" x="${attr(xP + 6)}" y="${attr(yDebut + 12)}">${tx(`${nom} = ${nb(l.gamma * l.F, 1)} kN`)}</text>`,
+    );
+    if (!dansVoile && !dansSemelle) empile++;
+  }
+
+  // Pivot du renversement : l'arete du patin.
   if (estPremiere) {
-    for (const l of lignesPivot) {
-      if (!l.elementaire.origine.includes('poussée') || l.d === null) continue;
-      const effort = l.gamma * l.F;
-      const yP = yBas - l.d * echelle;
-      morceaux.push(
-        `<line class="poussee" x1="${attr(xEcran + 58)}" y1="${attr(yP)}" x2="${attr(xEcran)}" y2="${attr(yP)}"/>`,
-        `<text class="etiquette" x="${attr(xEcran + 30)}" y="${attr(yP - 5)}" text-anchor="middle">${tx(phrase(l.elementaire.origine))} = ${nb(effort, 1)} kN</text>`,
-      );
-    }
-    for (const l of lignesPivot) {
-      if (l.role !== 'stabilisant' || l.d === null) continue;
-      const effort = l.gamma * l.F;
-      const xP = x(l.d);
-      morceaux.push(
-        `<line class="poids" x1="${attr(xP)}" y1="${attr(yBas - 70)}" x2="${attr(xP)}" y2="${attr(yBas)}"/>`,
-        `<text class="etiquette" x="${attr(xP + 4)}" y="${attr(yBas - 74)}">W = ${nb(effort, 1)} kN</text>`,
-      );
-    }
-  } else if (comb) {
-    for (const p of comb.pousseesCalcul) {
-      const yP = yBas - p.z * echelle;
-      morceaux.push(
-        `<line class="poussee" x1="${attr(xEcran + 58)}" y1="${attr(yP)}" x2="${attr(xEcran)}" y2="${attr(yP)}"/>`,
-        `<text class="etiquette" x="${attr(xEcran + 30)}" y="${attr(yP - 5)}" text-anchor="middle">${tx(phrase(p.origine))} = ${nb(p.F, 1)} kN</text>`,
-      );
-    }
+    morceaux.push(
+      `<circle class="pivot" cx="${attr(x0)}" cy="${attr(yBas)}" r="5"/>`,
+      `<text class="pivot-nom" x="${attr(x0 - 8)}" y="${attr(yBas + 18)}" text-anchor="end">${tx(`${textes().coupe.pivot} ${vue}`)}</text>`,
+    );
   }
 
   // Cotes de geometrie.
   if (options.cotes) {
-    const xCote = x0 - 52;
+    const xCote = x0 - 62;
     morceaux.push(
-      `<line class="cote" x1="${attr(xCote)}" y1="${attr(ySol)}" x2="${attr(xCote)}" y2="${attr(yHautSemelle)}"/>`,
+      `<line class="cote" x1="${attr(xCote)}" y1="${attr(ySol)}" x2="${attr(xCote)}" y2="${attr(yHautSemelle)}" ${TRAITS}/>`,
       `<text class="cote" x="${attr(xCote - 4)}" y="${attr((ySol + yHautSemelle) / 2)}" text-anchor="end">h = ${nb(g.h, 2)} m</text>`,
-      `<line class="cote" x1="${attr(xCote)}" y1="${attr(yHautSemelle)}" x2="${attr(xCote)}" y2="${attr(yBas)}"/>`,
-      `<text class="cote" x="${attr(xCote - 4)}" y="${attr((yHautSemelle + yBas) / 2)}" text-anchor="end">${nb(g.es, 2)} m</text>`,
+      `<line class="cote" x1="${attr(xCote)}" y1="${attr(yHautSemelle)}" x2="${attr(xCote)}" y2="${attr(yBas)}" ${TRAITS}/>`,
+      `<text class="cote" x="${attr(xCote - 4)}" y="${attr((yHautSemelle + yBas) / 2 + 4)}" text-anchor="end">${nb(g.es, 2)} m</text>`,
     );
-    const yCote = yBas + 22;
+    if (D > 0) {
+      morceaux.push(
+        `<line class="cote" x1="${attr(x0 - 20)}" y1="${attr(yBas - D * echelle)}" x2="${attr(x0 - 20)}" y2="${attr(yBas)}" ${TRAITS}/>`,
+        `<text class="cote" x="${attr(x0 - 16)}" y="${attr(yBas - D * echelle - 4)}">D = ${nb(D, 2)} m</text>`,
+      );
+    }
+    const yCote = yBas + 40;
+    const cote = (de: number, a: number, texte: string): string =>
+      `<line class="cote" x1="${attr(de)}" y1="${attr(yCote)}" x2="${attr(a)}" y2="${attr(yCote)}" ${TRAITS}/>` +
+      `<text class="cote" x="${attr((de + a) / 2)}" y="${attr(yCote - 4)}" text-anchor="middle">${texte}</text>`;
     morceaux.push(
-      `<line class="cote" x1="${attr(x0)}" y1="${attr(yCote)}" x2="${attr(x(g.patin))}" y2="${attr(yCote)}"/>`,
-      `<text class="cote" x="${attr(x(g.patin) / 2 + x0 / 2)}" y="${attr(yCote - 4)}" text-anchor="middle">patin ${nb(g.patin, 2)} m</text>`,
-      `<line class="cote" x1="${attr(x(g.patin))}" y1="${attr(yCote)}" x2="${attr(x(g.patin + g.eBas))}" y2="${attr(yCote)}"/>`,
-      `<text class="cote" x="${attr((x(g.patin) + x(g.patin + g.eBas)) / 2)}" y="${attr(yCote - 4)}" text-anchor="middle">${nb(g.eBas, 2)} m</text>`,
-      `<line class="cote" x1="${attr(x(g.patin + g.eBas))}" y1="${attr(yCote)}" x2="${attr(xEcran)}" y2="${attr(yCote)}"/>`,
-      `<text class="cote" x="${attr((x(g.patin + g.eBas) + xEcran) / 2)}" y="${attr(yCote - 4)}" text-anchor="middle">talon ${nb(g.talon, 2)} m</text>`,
+      cote(x0, x(g.patin), `patin ${nb(g.patin, 2)} m`),
+      cote(x(g.patin), x(g.patin + g.eBas), `${nb(g.eBas, 2)} m`),
+      cote(x(g.patin + g.eBas), xEcran, `talon ${nb(g.talon, 2)} m`),
     );
   }
 
-  // Bras de levier sous la semelle, pour la vue du renversement.
+  // Bras de levier, pour la vue du renversement : horizontaux pour les poids,
+  // verticaux pour les poussees, a la queue de leur fleche.
   if (options.bras && estPremiere) {
-    lignesPivot.forEach((l, i) => {
-      if (l.d === null) return;
-      const yBras = yBas + 40 + i * 16;
+    const yDepart = yBas + (options.cotes ? 58 : 30);
+    poids.forEach((l, i) => {
+      const xP = x(l.d as number);
+      const yBras = yDepart + i * 16;
       morceaux.push(
-        `<line class="bras" x1="${attr(x0)}" y1="${attr(yBras)}" x2="${attr(x(l.d))}" y2="${attr(yBras)}"/>`,
-        `<text class="bras" x="${attr(x(l.d) + 4)}" y="${attr(yBras - 3)}">${nb(l.d, 2)} m</text>`,
+        `<line class="rappel" x1="${attr(xP)}" y1="${attr(yBas)}" x2="${attr(xP)}" y2="${attr(yBras)}"/>`,
+        `<line class="bras" x1="${attr(x0)}" y1="${attr(yBras)}" x2="${attr(xP)}" y2="${attr(yBras)}" ${TRAITS}/>`,
+        `<text class="bras" x="${attr(xP + 6)}" y="${attr(yBras + 3)}">${nb(l.d as number, 2)} m</text>`,
       );
     });
+    for (const p of ordre) {
+      const xQ = queue(p.i);
+      morceaux.push(
+        `<line class="bras" x1="${attr(xQ)}" y1="${attr(p.yP)}" x2="${attr(xQ)}" y2="${attr(yBas)}" ${TRAITS}/>`,
+        `<text class="bras" x="${attr(xQ - 3)}" y="${attr((p.yP + yBas) / 2)}" text-anchor="middle" transform="rotate(-90 ${attr(xQ - 3)} ${attr((p.yP + yBas) / 2)})">${nb(p.z, 2)} m</text>`,
+      );
+    }
   }
 
   morceaux.push(`</svg>`);
@@ -297,7 +408,8 @@ export function baseSvg(r: ResultatMur, vue: string): string {
     contrainte = null;
   }
 
-  const n = Math.max(2, Math.ceil(B));
+  // Assez d'echantillons pour marquer le point ou le contact cesse.
+  const n = 41;
   const echantillons: { x: number; q: number }[] = [];
   if (contrainte) {
     for (let i = 0; i < n; i++) {
@@ -307,39 +419,53 @@ export function baseSvg(r: ResultatMur, vue: string): string {
     }
   }
   const qs = echantillons.map((p) => p.q);
-  const qmin = qs.length ? Math.min(...qs) : 0;
   const qmax = qs.length ? Math.max(...qs) : 0;
   const yContrainte = (q: number): number => {
-    if (!Number.isFinite(q)) return 80;
-    const etendue = qmax - qmin;
-    const part = etendue > 1e-9 ? (q - qmin) / etendue : 0.5;
-    return 80 + 70 * Math.min(1, Math.max(0, part));
+    if (!Number.isFinite(q) || qmax <= 0) return 80;
+    return 80 + 70 * Math.min(1, Math.max(0, q / qmax));
   };
+
+  const xTexte = LARGEUR - margeD + 20;
+  const pression = Bp > 0 ? V / Bp : Number.NaN;
 
   const morceaux: string[] = [];
   morceaux.push(
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${LARGEUR} 185" role="img" aria-label="${tx('Contrainte sous la semelle et largeur efficace')}">`,
+    DEFS,
     `<rect class="semelle" x="${attr(x0)}" y="48" width="${attr(B * echelle)}" height="20"/>`,
     `<line class="noyau" x1="${attr(x(B / 2 - B / 6))}" y1="72" x2="${attr(x(B / 2 + B / 6))}" y2="72"/>`,
-    `<text class="etiquette" x="${attr(LARGEUR - margeD + 20)}" y="72">${tx(textes().coupe.noyauCentral)}</text>`,
-    `<line class="resultante" x1="${attr(x(B / 2 - e))}" y1="16" x2="${attr(x(B / 2 - e))}" y2="46"/>`,
-    `<text class="etiquette" x="${attr(LARGEUR - margeD + 20)}" y="20">${tx(phrase(comb.nom))}</text>`,
-    `<text class="etiquette" x="${attr(LARGEUR - margeD + 20)}" y="38">${tx(`V = ${nb(V, 1)} kN ; e = ${nb(e, 2)} m`)}</text>`,
-    `<text class="etiquette" x="${attr(LARGEUR - margeD + 20)}" y="54">${tx(`B' = ${nb(Bp, 2)} m ; R_d = ${nb(Rd, 1)} kPa`)}</text>`,
+    `<line class="resultante" x1="${attr(x(B / 2 - e))}" y1="14" x2="${attr(x(B / 2 - e))}" y2="46" ${POINTE_TRACTION}/>`,
+    `<text class="etiquette" x="${attr(xTexte)}" y="20">${tx(phrase(comb.nom))}</text>`,
+    `<text class="etiquette" x="${attr(xTexte)}" y="36">${tx(`V = ${nb(V, 1)} kN ; e = ${nb(e, 2)} m`)}</text>`,
+    `<text class="etiquette" x="${attr(xTexte)}" y="52">${tx(`B' = ${nb(Bp, 2)} m ; R_d = ${nb(Rd, 1)} kN`)}</text>`,
+    `<text class="etiquette" x="${attr(xTexte)}" y="68">${tx(textes().coupe.noyauEpais)}</text>`,
   );
 
   if (echantillons.length >= 2) {
     const points = echantillons.map((p) => `${attr(x(p.x))},${attr(yContrainte(p.q))}`).join(' ');
+    morceaux.push(`<polygon class="contrainte" points="${attr(x0)},80 ${points} ${attr(x(B))},80"/>`);
+    for (const xm of [0, B / 2, B]) {
+      const q = contrainte ? contrainte(xm) : 0;
+      if (Number.isFinite(q) && yContrainte(q) - 80 > 6) {
+        morceaux.push(
+          `<line class="contrainte-fleche" x1="${attr(x(xm))}" y1="${attr(yContrainte(q) - 1)}" x2="${attr(x(xm))}" y2="81" ${POINTE_COMPRESSION}/>`,
+        );
+      }
+    }
+    const qGauche = contrainte ? contrainte(0) : 0;
+    const qDroite = contrainte ? contrainte(B) : 0;
     morceaux.push(
-      `<polygon class="contrainte" points="${attr(x0)},80 ${points} ${attr(x(B))},80"/>`,
-      `<text class="etiquette" x="${attr(x0 - 6)}" y="158" text-anchor="end">${nb(qmax, 1)} kPa</text>`,
+      `<text class="valeur-compression" x="${attr(x0 - 6)}" y="${attr(yContrainte(qGauche) + 4)}" text-anchor="end">${nb(qGauche, 1)} kPa</text>`,
+      `<text class="valeur-compression" x="${attr(x(B) + 6)}" y="${attr(yContrainte(qDroite) + 4)}">${nb(qDroite, 1)} kPa</text>`,
     );
   }
 
-  if (Bp > 0 && Number.isFinite(V / Bp)) {
-    const hauteurRect = Math.max(0, yContrainte(V / Bp) - 80);
+  if (Bp > 0 && Number.isFinite(pression)) {
+    const hauteurRect = Math.max(0, yContrainte(pression) - 80);
     morceaux.push(
       `<rect class="meyer" x="${attr(x0)}" y="80" width="${attr(Bp * echelle)}" height="${attr(hauteurRect)}"/>`,
+      `<text class="valeur-traction" x="${attr(x(Bp) + 6)}" y="${attr(Math.max(104, 80 + hauteurRect - 14))}">${tx(`V/B' = ${nb(pression, 1)} kPa`)}</text>`,
+      `<text class="valeur-traction" x="${attr(x(Bp) + 6)}" y="${attr(Math.max(118, 80 + hauteurRect))}">${tx(`R_d/B' = ${nb(Rd / Bp, 1)} kPa`)}</text>`,
     );
   }
 
@@ -357,7 +483,9 @@ export function baseSvg(r: ResultatMur, vue: string): string {
 export function projectionSvg(calcul: Calcul, phi: number): string {
   const g = calcul.donnees.geometrie;
   const H = g.h + g.es;
-  const retenues = bandesDe(calcul).filter((b) => b.distance + b.largeur - g.talon > 0);
+  const retenues = bandesDe(calcul)
+    .map((b, i) => ({ ...b, numero: i + 1 }))
+    .filter((b) => b.distance + b.largeur - g.talon > 0);
   if (retenues.length === 0) return '';
 
   const phiRad = (phi * Math.PI) / 180;
@@ -366,20 +494,28 @@ export function projectionSvg(calcul: Calcul, phi: number): string {
   if (!Number.isFinite(tanPhi) || !Number.isFinite(tanB)) return '';
 
   const maxLoin = Math.max(...retenues.map((b) => b.distance + b.largeur - g.talon));
-  const margeG = 200;
-  const margeD = 180;
-  const haut = 46;
-  const echelle = (LARGEUR - margeG - margeD) / Math.max(maxLoin, 0.1);
+  const margeG = 170;
+  const margeD = 190;
+  const haut = 62;
+  // Une bande proche de l'ecran ne doit pas etirer le dessin en hauteur.
+  const echelle = Math.min((LARGEUR - margeG - margeD) / Math.max(maxLoin, 0.1), 300 / Math.max(H, 0.1));
   const surface = haut;
   const xEcran = margeG;
-  const hauteur = Math.max(120, haut + H * echelle + 44);
+  const xFinSol = xEcran + maxLoin * echelle + 20;
+  const hauteur = Math.max(150, haut + H * echelle + 34);
+  const yBase = surface + H * echelle;
+  const yArase = yBase - g.es * echelle;
+  const xPatin = Math.max(30, xEcran - g.talon * echelle);
 
   const morceaux: string[] = [];
   morceaux.push(
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${LARGEUR} ${attr(hauteur)}" role="img" aria-label="${tx('Diffusion d une charge en bande jusqu a l ecran virtuel')}">`,
-    `<line class="surface" x1="${attr(xEcran)}" y1="${attr(surface)}" x2="${attr(LARGEUR - margeD)}" y2="${attr(surface)}"/>`,
-    `<line class="ecran" x1="${attr(xEcran)}" y1="${attr(surface)}" x2="${attr(xEcran)}" y2="${attr(surface + H * echelle)}"/>`,
-    `<text class="etiquette" x="${attr(xEcran - 4)}" y="${attr(surface - 8)}" text-anchor="end">${tx(textes().coupe.ecranVirtuel)}</text>`,
+    DEFS,
+    `<rect class="terrain" x="${attr(xPatin)}" y="${attr(surface)}" width="${attr(xFinSol - xPatin)}" height="${attr(yBase - surface)}"/>`,
+    `<rect class="semelle" x="${attr(xPatin)}" y="${attr(yArase)}" width="${attr(xEcran - xPatin)}" height="${attr(yBase - yArase)}"/>`,
+    `<line class="surface" x1="${attr(xPatin)}" y1="${attr(surface)}" x2="${attr(xFinSol)}" y2="${attr(surface)}"/>`,
+    `<line class="ecran" x1="${attr(xEcran)}" y1="${attr(surface)}" x2="${attr(xEcran)}" y2="${attr(yBase)}"/>`,
+    `<text class="etiquette" x="${attr(xEcran - 4)}" y="${attr(surface - 6)}" text-anchor="end">${tx(textes().coupe.ecranVirtuel)}</text>`,
   );
 
   retenues.forEach((b, i) => {
@@ -388,17 +524,23 @@ export function projectionSvg(calcul: Calcul, phi: number): string {
     const largeur = loin - a;
     const xProche = xEcran + a * echelle;
     const xLoin = xEcran + (a + largeur) * echelle;
-    const yBande = surface - 24;
+    const yBande = surface - 22;
+    const variante = b.nature === 'Q' ? 'variable' : 'permanent';
 
     morceaux.push(
-      `<line class="haut" x1="${attr(xProche)}" y1="${attr(yBande)}" x2="${attr(xLoin)}" y2="${attr(yBande)}"/>`,
+      `<g class="charge-repartie ${variante}">` +
+        `<line class="haut" x1="${attr(xProche)}" y1="${attr(yBande)}" x2="${attr(xLoin)}" y2="${attr(yBande)}"/>`,
     );
     for (let k = 0; k < 3; k++) {
       const xx = xProche + ((xLoin - xProche) * k) / 2;
       morceaux.push(
-        `<line class="fleche" x1="${attr(xx)}" y1="${attr(yBande)}" x2="${attr(xx)}" y2="${attr(surface - 2)}"/>`,
+        `<line class="fleche" x1="${attr(xx)}" y1="${attr(yBande)}" x2="${attr(xx)}" y2="${attr(surface - 1)}" ${POINTE_NEUTRE}/>`,
       );
     }
+    morceaux.push(
+      `</g>`,
+      `<text class="etiquette" x="${attr((xProche + xLoin) / 2)}" y="${attr(yBande - 5)}" text-anchor="middle">b${b.numero}</text>`,
+    );
 
     const p = projectionBande(a, largeur, phiRad, H);
     if (!p || p.z1 > H + 1e-9) return;
@@ -427,14 +569,13 @@ export function projectionSvg(calcul: Calcul, phi: number): string {
     for (let k = 0; k < 3; k++) {
       const yy = y1 + ((y2 - y1) * k) / 2;
       morceaux.push(
-        `<line class="fleche-pression" x1="${attr(xEcran + 18)}" y1="${attr(yy)}" x2="${attr(xEcran + 2)}" y2="${attr(yy)}"/>`,
+        `<line class="fleche-pression" x1="${attr(xEcran + 18)}" y1="${attr(yy)}" x2="${attr(xEcran + 2)}" y2="${attr(yy)}" ${POINTE_TRACTION}/>`,
       );
     }
 
-    const yTexte = 24 + i * 30;
+    const yTexte = 24 + i * 18;
     morceaux.push(
-      `<text class="etiquette" x="${attr(LARGEUR - margeD - 6)}" y="${attr(yTexte)}">z1 = ${nb(p.z1, 2)} m</text>`,
-      `<text class="etiquette" x="${attr(LARGEUR - margeD - 6)}" y="${attr(yTexte + 14)}">z2 = ${nb(p.z2, 2)} m</text>`,
+      `<text class="etiquette" x="${attr(LARGEUR - margeD + 8)}" y="${attr(yTexte)}">${tx(`b${b.numero} : z1 = ${nb(p.z1, 2)} m ; z2 = ${nb(p.z2, 2)} m`)}</text>`,
     );
   });
 
