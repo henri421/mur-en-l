@@ -6,28 +6,27 @@
  */
 
 import type { ElementNote, LigneResultat, NoteDeCalcul, VerificationNote } from 'aedificium-ui';
-import { nombreAffiche, tauxAffiche } from 'aedificium-ui';
-import type { ResultatCombinaison, ResultatMur, VerifSection } from '../../src/mur';
+import type { ResultatMur, VerifSection } from '../../src/mur';
 import type { Calcul } from './form';
 import { coupe, projectionSvg, vuesDisponibles } from './dessin';
-import { textes } from './textes';
-import { blocEntrees, messageDErreur } from './vue';
+import { phrase, textes } from './textes';
+import { blocEntrees, blocsCalcul, messageDErreur } from './vue';
 
 const NORMES: Record<ResultatMur['generation'], string> = {
   '1re': 'EN 1997-1:2004, EN 1992-1-1:2004',
   '2e': 'EN 1997-1:2024, EN 1997-3:2025, EN 1990:2023, EN 1992-1-1:2023',
 };
 
-/** Nombre affiche : les valeurs non finies passent par `tauxAffiche` (jamais « NaN »). */
-const aff = (v: number, d = 1): string => (Number.isFinite(v) ? nombreAffiche(v, d) : tauxAffiche(v));
+const MATERIAUX = new Set(['f_ck', 'f_yk', 'gamma_c', 'D_lower', 'gamma', "phi'", "phi'_b", 'delta/phi', "c'", 'gamma_b', 'q_Rd']);
+const HYPOTHESES = new Set(['génération', 'generation', 'approche', 'approach', 'classe', 'class', 'dimensions', 'profondeur', 'depth']);
 
 type Section = 'geometrie' | 'materiaux' | 'hypotheses' | 'charges';
 
 /** Rangement des lignes d'entree par symbole ; un symbole inconnu va en geometrie. */
 function sectionDe(symbole: string): Section {
-  if (symbole === 'f_ck' || symbole === 'f_yk' || symbole === 'gamma_beton') return 'materiaux';
-  if (symbole === 'génération' || symbole === 'generation' || symbole === 'approche') return 'hypotheses';
-  if (symbole.startsWith('bande ') || symbole === 'q' || symbole === 'K_a') return 'charges';
+  if (MATERIAUX.has(symbole)) return 'materiaux';
+  if (HYPOTHESES.has(symbole)) return 'hypotheses';
+  if (/^(bande|strip) /.test(symbole) || symbole === 'q' || symbole === 'K_a') return 'charges';
   return 'geometrie';
 }
 
@@ -60,8 +59,8 @@ function verificationsDe(r: ResultatMur): VerificationNote[] {
 
   for (const c of r.combinaisons) {
     out.push(
-      verif(`${c.nom} · ${t.note.glissement}`, `${g2 ? clauses.glissement2 : clauses.glissement1} · ${c.nom}`, c.glissement.taux),
-      verif(`${c.nom} · ${t.note.portance}`, `${g2 ? clauses.portance2 : clauses.portance1} · ${c.nom}`, c.portance.taux)
+      verif(`${phrase(c.nom)} · ${t.note.glissement}`, `${g2 ? clauses.glissement2 : clauses.glissement1} · ${phrase(c.nom)}`, c.glissement.taux),
+      verif(`${phrase(c.nom)} · ${t.note.portance}`, `${g2 ? clauses.portance2 : clauses.portance1} · ${phrase(c.nom)}`, c.portance.taux)
     );
   }
 
@@ -75,9 +74,9 @@ function verificationsDe(r: ResultatMur): VerificationNote[] {
     sections.push([t.note.voile, c.voile], [t.note.patin, c.patin], [t.note.talon, c.talon]);
     for (const [nom, s] of sections) {
       out.push(
-        verif(`${c.nom} · ${nom} · ${t.note.flexion}`, flexion, s.tauxFlexion),
-        verif(`${c.nom} · ${nom} · ${t.note.tranchant}`, tranchant, s.tauxTranchant),
-        verif(`${c.nom} · ${nom} · ${t.note.armatureMin}`, armatureMin, tauxArmatureMin(s))
+        verif(`${phrase(c.nom)} · ${nom} · ${t.note.flexion}`, flexion, s.tauxFlexion),
+        verif(`${phrase(c.nom)} · ${nom} · ${t.note.tranchant}`, tranchant, s.tauxTranchant),
+        verif(`${phrase(c.nom)} · ${nom} · ${t.note.armatureMin}`, armatureMin, tauxArmatureMin(s))
       );
     }
   }
@@ -122,39 +121,6 @@ function bloc(titre: string, lignes: LigneResultat[]): ElementNote {
   return { type: 'bloc', bloc: { titre, lignes, note: null } };
 }
 
-function blocCombinaison(c: ResultatCombinaison, n: TextesNote): ElementNote {
-  const lignes: LigneResultat[] = [
-    { symbole: 'H_d', libelle: n.hd, valeur: aff(c.glissement.H_d) },
-    { symbole: 'R_d', libelle: n.rdGlissement, valeur: aff(c.glissement.R_d) },
-    { symbole: 'taux_glissement', libelle: `taux ${n.glissement}`, valeur: tauxAffiche(c.glissement.taux) },
-    { symbole: 'V', libelle: n.v, valeur: aff(c.portance.V) },
-    { symbole: "B'", libelle: n.bp, valeur: aff(c.portance.Bp, 3) },
-    { symbole: 'R_d_portance', libelle: n.rdPortance, valeur: aff(c.portance.R_d) },
-    { symbole: 'taux_portance', libelle: `taux ${n.portance}`, valeur: tauxAffiche(c.portance.taux) },
-  ];
-  return bloc(`${n.glissementPortance} · ${c.nom}`, lignes);
-}
-
-function blocSections(c: ResultatCombinaison, n: TextesNote): ElementNote {
-  const sections: [string, VerifSection][] = [
-    [n.voile, c.voile],
-    [n.patin, c.patin],
-    [n.talon, c.talon],
-  ];
-  const lignes: LigneResultat[] = [];
-  for (const [nom, s] of sections) {
-    lignes.push(
-      { symbole: 'M_Ed', libelle: `${nom} · ${n.mEd}`, valeur: aff(s.M_Ed) },
-      { symbole: 'M_Rd', libelle: `${nom} · ${n.mRd}`, valeur: aff(s.M_Rd) },
-      { symbole: 'V_Ed', libelle: `${nom} · ${n.vEd}`, valeur: aff(s.V_Ed) },
-      { symbole: 'V_Rd_c', libelle: `${nom} · ${n.vRdc}`, valeur: aff(s.V_Rd_c) },
-      { symbole: 'A_s_min', libelle: `${nom} · ${n.asMin}`, valeur: aff(s.As_min, 0) },
-      { symbole: 'A_s', libelle: `${nom} · ${n.as}`, valeur: aff(s.As, 0) }
-    );
-  }
-  return bloc(`${n.sections} · ${c.nom}`, lignes);
-}
-
 /** Note du calcul courant, sans verdict global. */
 export function noteDuCalcul(
   calcul: Calcul,
@@ -167,23 +133,7 @@ export function noteDuCalcul(
   const entrees = blocEntrees(calcul);
   const lignes = (s: Section): LigneResultat[] => entrees.lignes.filter((l) => sectionDe(l.symbole) === s);
 
-  const renversement: ElementNote = {
-    type: 'bloc',
-    bloc: {
-      titre: n.renversement,
-      lignes: [
-        { symbole: 'M_dst', libelle: n.mDst, valeur: aff(r.renversement.pivot.M_dst_d) },
-        { symbole: 'M_stb', libelle: n.mStb, valeur: aff(r.renversement.pivot.M_stb_d) },
-        { symbole: 'taux_renversement', libelle: `taux ${n.renversement}`, valeur: tauxAffiche(r.renversement.pivot.taux) },
-      ],
-      note: null,
-    },
-  };
-
-  const calculs: ElementNote[] = [renversement];
-  for (const c of r.combinaisons) {
-    calculs.push(blocCombinaison(c, n), blocSections(c, n));
-  }
+  const calculs: ElementNote[] = blocsCalcul(r).map((b) => ({ type: 'bloc', bloc: b }));
 
   const projection = projectionSvg(calcul, r.combinaisons[0].phi_d);
   const charges: ElementNote[] = [bloc(t.vue.entrees.titre, lignes('charges'))];

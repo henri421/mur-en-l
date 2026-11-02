@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>L-shaped retaining wall — stability and sections, Eurocodes of both generations</title>
+    <meta
+      name="description"
+      content="Verification of an L-shaped retaining wall to Eurocode 7 and Eurocode 2, in both generations."
+    />
+    <link rel="icon" href="../icone.svg" type="image/svg+xml" />
+    <link rel="manifest" href="../manifest.webmanifest" />
+  </head>
+  <body>
+    <div class="barre">
+      <div class="barre-corps">
+        <span class="barre-nom">webaedificium</span>
+        <div class="barre-actions">
+          <a class="barre-lien" href="../">All tools</a>
+          <a class="barre-langue" href="../" lang="fr" hreflang="fr">FR</a>
+        </div>
+      </div>
+    </div>
+
+    <header>
+      <h1>L-shaped retaining wall</h1>
+      <p class="sous-titre">
+        Stability and sections of an L-shaped retaining wall, Eurocodes of both generations.
+      </p>
+      <p class="avertissement">
+        The recommended values of the standards are used, in the absence of a Belgian national annex.
+        Check these values before any use on a real structure.
+      </p>
+    </header>
+
+    <main>
+      <section id="saisie" aria-label="Input">
+        <form id="formulaire" autocomplete="off" novalidate>
+          <div class="generations">
+            <button type="button" data-generation="1re" aria-pressed="true">1<sup>st</sup> generation</button>
+            <button type="button" data-generation="2e" aria-pressed="false">2<sup>nd</sup> generation</button>
+          </div>
+
+          <fieldset>
+            <legend>Generation and approach</legend>
+
+            <div class="groupe" data-groupe="1re">
+              <label>
+                <span>Calculation approach</span>
+                <select data-champ="approche1">
+                  <option value="DA1">DA1</option>
+                  <option value="DA2">DA2</option>
+                  <option value="DA3">DA3</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="groupe" data-groupe="2e">
+              <label>
+                <span>Approach combination</span>
+                <select data-champ="approche2">
+                  <option value="a+b">a + b</option>
+                  <option value="c">c</option>
+                  <option value="d">d</option>
+                </select>
+              </label>
+              <label>
+                <span>Consequence class</span>
+                <select data-champ="consequences">
+                  <option value="CC1">CC1</option>
+                  <option value="CC2">CC2</option>
+                  <option value="CC3">CC3</option>
+                </select>
+              </label>
+              <label class="case">
+                <input type="checkbox" data-champ="dimensionsControlees" />
+                <span>Controlled dimensions</span>
+              </label>
+              <label class="case">
+                <input type="checkbox" data-champ="profondeurComptee" />
+                <span>Embedment depth counted</span>
+              </label>
+              <label>
+                <span>Depth D<sub>lower</sub> (cm)</span>
+                <input type="text" inputmode="decimal" data-champ="Dlower" />
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Wall geometry</legend>
+            <label>
+              <span>Wall height h (m)</span>
+              <input type="text" inputmode="decimal" data-champ="h" />
+            </label>
+            <label>
+              <span>Top thickness e<sub>top</sub> (m)</span>
+              <input type="text" inputmode="decimal" data-champ="eHaut" />
+            </label>
+            <label>
+              <span>Bottom thickness e<sub>bottom</sub> (m)</span>
+              <input type="text" inputmode="decimal" data-champ="eBas" />
+            </label>
+            <label>
+              <span>Base slab thickness e<sub>s</sub> (m)</span>
+              <input type="text" inputmode="decimal" data-champ="es" />
+            </label>
+            <label>
+              <span>Toe length (m)</span>
+              <input type="text" inputmode="decimal" data-champ="patin" />
+            </label>
+            <label>
+              <span>Heel length (m)</span>
+              <input type="text" inputmode="decimal" data-champ="talon" />
+            </label>
+            <label>
+              <span>Concrete unit weight γ<sub>concrete</sub> (kN/m³)</span>
+              <input type="text" inputmode="decimal" data-champ="gammaBeton" />
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Backfill</legend>
+            <label>
+              <span>Backfill unit weight γ (kN/m³)</span>
+              <input type="text" inputmode="decimal" data-champ="gamma" />
+            </label>
+            <label>
+              <span>Internal friction angle φ’<sub>k</sub> (°)</span>
+              <input type="text" inputmode="decimal" data-champ="phi" />
+            </label>
+            <label>
+              <span>Uniform surcharge q (kN/m²)</span>
+              <input type="text" inputmode="decimal" data-champ="q" />
+            </label>
+            <label>
+              <span>Share of K<sub>a</sub> (%), the rest in K<sub>0</sub></span>
+              <input type="text" inputmode="decimal" data-champ="partKa" />
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Strip loads</legend>
+            <div class="defilement">
+              <table class="bandes">
+                <thead>
+                  <tr>
+                    <th scope="col">Type</th>
+                    <th scope="col">q (kN/m²)</th>
+                    <th scope="col">Distance (m)</th>
+                    <th scope="col">Width (m)</th>
+                    <th scope="col"><span class="clause">Remove</span></th>
+                  </tr>
+                </thead>
+                <tbody data-role="bandes"></tbody>
+              </table>
+            </div>
+            <div class="boutons">
+              <button type="button" data-action="ajouter-bande">Add a strip</button>
+            </div>
+            <p class="note">
+              A strip is a distributed load of finite width, defined by its distance to the screen
+              and its width. Permanent loads are denoted G and variable loads Q.
+            </p>
+          </fieldset>
+
+          <fieldset>
+            <legend>Foundation</legend>
+            <label>
+              <span>Internal friction angle of the bearing soil φ’<sub>k</sub> (°)</span>
+              <input type="text" inputmode="decimal" data-champ="phiBase" />
+            </label>
+            <label>
+              <span>Ratio δ<sub>k</sub> over φ’<sub>k</sub></span>
+              <input type="text" inputmode="decimal" data-champ="deltaSurPhi" />
+            </label>
+            <label>
+              <span>Bearing mode</span>
+              <select data-champ="modePortance">
+                <option value="annexeD" data-portance="annexeD">Annex D</option>
+                <option value="saisie" data-portance="saisie">Direct input</option>
+              </select>
+            </label>
+
+            <div class="groupe" data-portance-groupe="annexeD">
+              <label>
+                <span>Cohesion of the bearing soil c’<sub>k</sub> (kPa)</span>
+                <input type="text" inputmode="decimal" data-champ="c" />
+              </label>
+              <label>
+                <span>Unit weight of the bearing soil γ (kN/m³)</span>
+                <input type="text" inputmode="decimal" data-champ="gammaBase" />
+              </label>
+              <label>
+                <span>Embedment depth D (m)</span>
+                <input type="text" inputmode="decimal" data-champ="D" />
+              </label>
+            </div>
+
+            <div class="groupe" data-portance-groupe="saisie">
+              <label>
+                <span>Design resistance q<sub>Rd</sub> (kPa)</span>
+                <input type="text" inputmode="decimal" data-champ="qRd" />
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Reinforcement</legend>
+            <label>
+              <span>Concrete strength f<sub>ck</sub> (MPa)</span>
+              <input type="text" inputmode="decimal" data-champ="fck" />
+            </label>
+            <label>
+              <span>Steel yield strength f<sub>yk</sub> (MPa)</span>
+              <input type="text" inputmode="decimal" data-champ="fyk" />
+            </label>
+            <label>
+              <span>Nominal cover a (mm)</span>
+              <input type="text" inputmode="decimal" data-champ="a" />
+            </label>
+
+            <label>
+              <span>Back wall, diameter (mm)</span>
+              <input type="text" inputmode="decimal" data-champ="voileArriere.diametre" />
+            </label>
+            <label>
+              <span>Back wall, spacing (mm)</span>
+              <input type="text" inputmode="decimal" data-champ="voileArriere.espacement" />
+            </label>
+            <label>
+              <span>Front wall, diameter (mm)</span>
+              <input type="text" inputmode="decimal" data-champ="voileAvant.diametre" />
+            </label>
+            <label>
+              <span>Front wall, spacing (mm)</span>
+              <input type="text" inputmode="decimal" data-champ="voileAvant.espacement" />
+            </label>
+            <label>
+              <span>Top base slab, diameter (mm)</span>
+              <input type="text" inputmode="decimal" data-champ="semelleHaut.diametre" />
+            </label>
+            <label>
+              <span>Top base slab, spacing (mm)</span>
+              <input type="text" inputmode="decimal" data-champ="semelleHaut.espacement" />
+            </label>
+            <label>
+              <span>Bottom base slab, diameter (mm)</span>
+              <input type="text" inputmode="decimal" data-champ="semelleBas.diametre" />
+            </label>
+            <label>
+              <span>Bottom base slab, spacing (mm)</span>
+              <input type="text" inputmode="decimal" data-champ="semelleBas.espacement" />
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Out of scope</legend>
+            <p class="note">
+              This tool does not cover groundwater, the shear key, sloping ground, backfill
+              cohesion, passive resistance in front of the toe, undrained analysis, serviceability
+              states (cracking) and overall site stability.
+            </p>
+          </fieldset>
+
+          <p class="avertissement">
+            Without a national annex, the recommended values of the standards are used.
+          </p>
+
+          <div class="boutons">
+            <button type="button" data-action="reinitialiser">Reset</button>
+          </div>
+        </form>
+      </section>
+
+      <div class="colonne">
+        <section id="sorties" aria-label="Results">
+          <h2>Results</h2>
+          <p class="erreur" data-role="erreur" hidden></p>
+          <div class="boutons" data-role="vues"></div>
+          <div data-role="verdicts"></div>
+          <div data-role="volets"></div>
+        </section>
+
+        <section aria-label="Section">
+          <h2>Section</h2>
+          <div class="boutons">
+            <label class="case">
+              <input type="checkbox" data-option="cotes" />
+              <span>Dimensions</span>
+            </label>
+            <label class="case">
+              <input type="checkbox" data-option="bras" />
+              <span>Lever arms</span>
+            </label>
+          </div>
+          <div data-role="coupe"></div>
+          <div data-role="base"></div>
+          <div data-role="projection"></div>
+        </section>
+
+        <section aria-label="Exports">
+          <h2>Exports</h2>
+          <label>
+            <span>Project</span>
+            <input type="text" data-role="projet" />
+          </label>
+          <label>
+            <span>Element</span>
+            <input type="text" data-role="element" />
+          </label>
+          <div class="boutons">
+            <button type="button" data-action="exporter-note">Calculation note</button>
+            <button type="button" data-action="exporter-coupe">Section SVG</button>
+            <button type="button" data-action="exporter-resultats">Results CSV</button>
+            <button type="button" data-action="enregistrer">Save input</button>
+          </div>
+          <label>
+            <span>Open a saved input</span>
+            <input type="file" data-role="ouvrir" accept=".json,application/json" />
+          </label>
+          <p class="note">
+            The input is kept in this browser. Opened files are read locally, without being sent
+            over the network.
+          </p>
+        </section>
+      </div>
+    </main>
+
+    <footer>
+      <p>L-shaped wall · local verification tool · Eurocode 7 and Eurocode 2.</p>
+    </footer>
+
+    <script type="module" src="../src/main.ts"></script>
+  </body>
+</html>

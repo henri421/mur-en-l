@@ -4,12 +4,14 @@
  */
 
 import { type BlocResultat, nombreAffiche, notationHtml, tauxAffiche } from 'aedificium-ui';
-import type { ResultatMur } from '../../src/mur';
+import type { ResultatCombinaison, ResultatMur } from '../../src/mur';
 import type { Calcul } from './form';
 import { phrase, textes } from './textes';
 
 /** Nombre affiche : les valeurs non finies passent par `tauxAffiche`. */
 const aff = (v: number, d = 1): string => (Number.isFinite(v) ? nombreAffiche(v, d) : tauxAffiche(v));
+
+const APPROCHES_2E = { 'a+b': '(a) + (b)', c: '(c)', d: '(d)' } as const;
 
 /** Symbole mis en forme (indices, lettres grecques). */
 const sym = (s: string): string => notationHtml(s);
@@ -69,7 +71,7 @@ export function verdictsHtml(r: ResultatMur): string {
     }),
     carte({
       nom: t.noms.glissement,
-      clause: `${g2 ? t.clauses.glissement2 : t.clauses.glissement1} · ${cG.nom}`,
+      clause: `${g2 ? t.clauses.glissement2 : t.clauses.glissement1} · ${phrase(cG.nom)}`,
       taux: cG.glissement.taux,
       detail:
         `${sym('H_d')} = ${aff(cG.glissement.H_d, 1)} ${t.unités.kN} ≤ ` +
@@ -77,7 +79,7 @@ export function verdictsHtml(r: ResultatMur): string {
     }),
     carte({
       nom: t.noms.portance,
-      clause: `${g2 ? t.clauses.portance2 : t.clauses.portance1} · ${cP.nom}`,
+      clause: `${g2 ? t.clauses.portance2 : t.clauses.portance1} · ${phrase(cP.nom)}`,
       taux: cP.portance.taux,
       detail:
         `${sym('V_d')} = ${aff(cP.portance.V, 1)} ${t.unités.kN} ≤ ` +
@@ -103,10 +105,10 @@ export function verdictsHtml(r: ResultatMur): string {
       `<div class="deux">` +
       `<div><div class="jauge"><i style="width:${largeur(vf.tauxFlexion)}%"></i></div>` +
       `<span class="taux">${tauxAffiche(vf.tauxFlexion)}</span>` +
-      `<p>${t.noms.flexion} · ${vf.casFlexion}</p></div>` +
+      `<p>${t.noms.flexion} · ${phrase(vf.casFlexion)}</p></div>` +
       `<div><div class="jauge"><i style="width:${largeur(vt.tauxTranchant)}%"></i></div>` +
       `<span class="taux">${tauxAffiche(vt.tauxTranchant)}</span>` +
-      `<p>${t.noms.tranchant} · ${vt.casTranchant}</p></div>` +
+      `<p>${t.noms.tranchant} · ${phrase(vt.casTranchant)}</p></div>` +
       `</div></div>`
     );
   }).join('');
@@ -146,7 +148,7 @@ export function voletsHtml(r: ResultatMur): string {
       const g = c.glissement;
       const p = c.portance;
       return (
-        `<tr><td>${c.nom}</td>` +
+        `<tr><td>${phrase(c.nom)}</td>` +
         `<td class="n">${aff(c.phi_d, 3)}</td>` +
         `<td class="n">${aff(g.H_d, 1)}</td>` +
         `<td class="n">${aff(g.N_d, 1)}</td>` +
@@ -166,7 +168,7 @@ export function voletsHtml(r: ResultatMur): string {
   const renversement = r.renversement.pivot.lignes
     .map(
       (l) =>
-        `<tr><td>${l.elementaire.origine}</td>` +
+        `<tr><td>${phrase(l.elementaire.origine)}</td>` +
         `<td class="n">${aff(l.F, 2)}</td>` +
         `<td class="n">${l.d === null ? '—' : aff(l.d, 3)}</td>` +
         `<td class="n">${aff(l.Md, 2)}</td>` +
@@ -180,7 +182,7 @@ export function voletsHtml(r: ResultatMur): string {
         .map(
           (x) =>
             `<tr${x === c.portance ? ' class="gouverne"' : ''}>` +
-            `<td>${x.nom}</td>` +
+            `<td>${phrase(x.nom)}</td>` +
             `<td class="n">${aff(x.V, 1)}</td>` +
             `<td class="n">${aff(x.H, 1)}</td>` +
             `<td class="n">${aff(x.M, 1)}</td>` +
@@ -191,11 +193,11 @@ export function voletsHtml(r: ResultatMur): string {
         )
         .join('');
       return (
-        `<p class="sous-titre">${c.nom}</p>` +
+        `<p class="sous-titre">${phrase(c.nom)}</p>` +
         `<div class="defile"><table><thead><tr><th>${t.volets.cas}</th>` +
         `<th class="n">V</th><th class="n">H</th><th class="n">M</th>` +
         `<th class="n">e</th><th class="n">${sym("B'")}</th><th class="n">${sym('R_d')}</th>` +
-        `<th class="n">Taux</th></tr></thead><tbody>${lignes}</tbody></table></div>`
+        `<th class="n">${t.colonnes.taux}</th></tr></thead><tbody>${lignes}</tbody></table></div>`
       );
     })
     .join('');
@@ -204,7 +206,7 @@ export function voletsHtml(r: ResultatMur): string {
     .map((c) =>
       SECTIONS.map(
         (s) =>
-          `<tr><td>${c.nom} · ${t.noms[s]}</td>` +
+          `<tr><td>${phrase(c.nom)} · ${t.noms[s]}</td>` +
           `<td class="n">${aff(c[s].M_Ed, 1)}</td>` +
           `<td class="n">${aff(c[s].M_Rd, 1)}</td>` +
           `<td class="n">${aff(c[s].V_Ed, 1)}</td>` +
@@ -219,22 +221,22 @@ export function voletsHtml(r: ResultatMur): string {
 
   return (
     `<details class="deriv" open><summary>${t.volets.glissementPortance}</summary>` +
-    `<div class="defile"><table><thead><tr><th>Combinaison</th>` +
+    `<div class="defile"><table><thead><tr><th>${t.colonnes.combinaison}</th>` +
     `<th class="n">${sym('φ_d')}</th><th class="n">${sym('H_d')}</th><th class="n">${sym('N_d')}</th>` +
-    `<th class="n">${sym('μ_d')}</th><th class="n">${sym('R_d')}</th><th class="n">Taux</th>` +
+    `<th class="n">${sym('μ_d')}</th><th class="n">${sym('R_d')}</th><th class="n">${t.colonnes.taux}</th>` +
     `<th class="n">V</th><th class="n">M</th><th class="n">e</th>` +
-    `<th class="n">${sym("B'")}</th><th class="n">${sym('R_d')}</th><th class="n">Taux</th></tr></thead>` +
+    `<th class="n">${sym("B'")}</th><th class="n">${sym('R_d')}</th><th class="n">${t.colonnes.taux}</th></tr></thead>` +
     `<tbody>${glissement}</tbody></table></div></details>` +
     `<details class="deriv"><summary>${t.volets.renversement}</summary>` +
-    `<div class="defile"><table><thead><tr><th>Action</th>` +
-    `<th class="n">Effort (kN)</th><th class="n">Bras (m)</th>` +
-    `<th class="n">Moment (kN·m)</th><th>Rôle</th></tr></thead>` +
+    `<div class="defile"><table><thead><tr><th>${t.colonnes.action}</th>` +
+    `<th class="n">${t.colonnes.effort}</th><th class="n">${t.colonnes.bras}</th>` +
+    `<th class="n">Moment (kN·m)</th><th>${t.colonnes.role}</th></tr></thead>` +
     `<tbody>${renversement}</tbody></table>` +
     `<p>${sym('M_dst,d')} = ${aff(r.renversement.pivot.M_dst_d, 2)} kN·m ; ` +
     `${sym('M_stb,d')} = ${aff(r.renversement.pivot.M_stb_d, 2)} kN·m.</p></div></details>` +
     `<details class="deriv"><summary>${t.volets.cas}</summary>${cas}</details>` +
     `<details class="deriv"><summary>${t.volets.sections}</summary>` +
-    `<div class="defile"><table><thead><tr><th>Section</th>` +
+    `<div class="defile"><table><thead><tr><th>${t.colonnes.section}</th>` +
     `<th class="n">${sym('M_Ed')}</th><th class="n">${sym('M_Rd')}</th><th class="n">${sym('V_Ed')}</th>` +
     `<th class="n">${sym('V_Rd,c')}</th><th class="n">${sym('A_s,min')}</th><th class="n">${sym('A_s')}</th>` +
     `</tr></thead><tbody>${sections}</tbody></table></div></details>` +
@@ -245,72 +247,124 @@ export function voletsHtml(r: ResultatMur): string {
 
 export function blocEntrees(calcul: Calcul): BlocResultat {
   const t = textes().vue;
+  const e = t.entrees;
   const d = calcul.donnees;
   const lignes: { symbole: string; libelle: string; valeur: string }[] = [];
   const ligne = (symbole: string, libelle: string, valeur: string): void => {
     lignes.push({ symbole, libelle, valeur });
   };
 
-  const approche =
-    calcul.generation === '1re' ? calcul.donnees.approche : `CC2 ${calcul.donnees.approche}`;
-
-  ligne(t.entrees.symboleGeneration, t.entrees.generation, calcul.generation);
-  ligne('approche', t.entrees.approche, approche);
+  ligne(e.symboleGeneration, e.generation, t.generations[calcul.generation]);
+  if (calcul.generation === '1re') {
+    ligne(e.symboleApproche, e.approche, calcul.donnees.approche);
+  } else {
+    const x = calcul.donnees;
+    ligne(e.symboleApproche, e.approche, APPROCHES_2E[x.approche]);
+    ligne(e.symboleClasse, e.classe, x.consequences);
+    ligne(e.symboleDimensions, e.dimensions, x.dimensionsControlees ? e.oui : e.non);
+    ligne(e.symboleProfondeur, e.profondeur, x.profondeurComptee ? e.oui : e.non);
+    ligne('D_lower', e.dLower, `${aff(x.Dlower, 0)} mm`);
+  }
 
   const geo = d.geometrie;
-  ligne('h', t.entrees.h, aff(geo.h, 3));
-  ligne('e_haut', t.entrees.eHaut, aff(geo.eHaut, 3));
-  ligne('e_bas', t.entrees.eBas, aff(geo.eBas, 3));
-  ligne('es', t.entrees.es, aff(geo.es, 3));
-  ligne('patin', t.entrees.patin, aff(geo.patin, 3));
-  ligne('talon', t.entrees.talon, aff(geo.talon, 3));
+  ligne('h', e.h, `${aff(geo.h, 3)} m`);
+  ligne('e_haut', e.eHaut, `${aff(geo.eHaut, 3)} m`);
+  ligne('e_bas', e.eBas, `${aff(geo.eBas, 3)} m`);
+  ligne('e_s', e.es, `${aff(geo.es, 3)} m`);
+  ligne('patin', e.patin, `${aff(geo.patin, 3)} m`);
+  ligne('talon', e.talon, `${aff(geo.talon, 3)} m`);
 
-  ligne('gamma_beton', t.entrees.gammaBeton, aff(d.gammaBeton, 2));
+  ligne('gamma_c', e.gammaBeton, `${aff(d.gammaBeton, 2)} kN/m³`);
 
   const remblai = d.remblai;
-  ligne('gamma_remblai', t.entrees.remblaiGamma, aff(remblai.gamma, 2));
-  ligne('phi_remblai', t.entrees.remblaiPhi, aff(remblai.phi, 1));
-  ligne('q', t.entrees.surcharge, aff(remblai.q, 1));
-  const partKa = Number(remblai.partKa);
-  ligne('K_a', t.entrees.partKa, `${aff(partKa <= 1 ? partKa * 100 : partKa, 0)} %`);
+  ligne('gamma', e.remblaiGamma, `${aff(remblai.gamma, 2)} kN/m³`);
+  ligne("phi'", e.remblaiPhi, `${aff(remblai.phi, 1)} °`);
+  ligne('q', e.surcharge, `${aff(remblai.q, 1)} kPa`);
+  ligne('K_a', e.partKa, `${aff((remblai.partKa ?? 1) * 100, 0)} %`);
   (remblai.charges ?? []).forEach((ch, i) => {
-    ligne(
-      `bande ${i + 1}`,
-      t.entrees.bande(i + 1),
-      `${ch.nature} ${aff(ch.q, 0)} kPa, à ${aff(ch.distance, 1)} m, ` +
-        `largeur ${aff(ch.largeur, 1)} m`,
-    );
+    ligne(e.symboleBande(i + 1), e.bande(i + 1), e.valeurBande(ch.nature, aff(ch.q, 1), aff(ch.distance, 2), aff(ch.largeur, 2)));
   });
 
   const fondation = d.fondation;
-  ligne('phi_fondation', t.entrees.fondationPhi, aff(fondation.phi, 1));
-  ligne('delta_sur_phi', t.entrees.deltaSurPhi, aff(fondation.deltaSurPhi, 2));
+  ligne("phi'_b", e.fondationPhi, `${aff(fondation.phi, 1)} °`);
+  ligne('delta/phi', e.deltaSurPhi, aff(fondation.deltaSurPhi, 2));
   const portance = fondation.portance;
   if (portance.mode === 'annexeD') {
-    ligne('portance_phi', t.entrees.portancePhi, aff(portance.phi, 1));
-    ligne('portance_c', t.entrees.portanceC, aff(portance.c, 1));
-    ligne('portance_gamma', t.entrees.portanceGamma, aff(portance.gamma, 2));
-    ligne('portance_D', t.entrees.portanceD, aff(portance.D, 3));
+    ligne("c'", e.portanceC, `${aff(portance.c, 1)} kPa`);
+    ligne('gamma_b', e.portanceGamma, `${aff(portance.gamma, 2)} kN/m³`);
+    ligne('D', e.portanceD, `${aff(portance.D, 3)} m`);
   } else {
-    ligne('q_Rd', t.entrees.qRd, aff(portance.qRd, 3));
+    ligne('q_Rd', e.qRd, `${aff(portance.qRd, 1)} kPa`);
   }
 
-  ligne('f_ck', t.entrees.fck, aff(d.armatures.fck, 1));
-  ligne('f_yk', t.entrees.fyk, aff(d.armatures.fyk, 1));
+  ligne('f_ck', e.fck, `${aff(d.armatures.fck, 1)} MPa`);
+  ligne('f_yk', e.fyk, `${aff(d.armatures.fyk, 1)} MPa`);
+  ligne('a', e.axe, `${aff(d.armatures.a, 0)} mm`);
 
   const cles = ['voileArriere', 'voileAvant', 'semelleHaut', 'semelleBas'] as const;
-  for (const cle of cles) {
+  cles.forEach((cle, i) => {
     const b = calcul.barres[cle];
-    const a = d.armatures[cle];
-    const vide = Number(b.diametre) === 0;
-    ligne(
-      `a_${cle}`,
-      t.entrees.armatures[cle],
-      vide ? t.entrees.aucune : `HA${b.diametre} / ${b.espacement} mm, ${nombreAffiche(a, 0)} mm²/m`,
-    );
-  }
+    const vide = d.armatures[cle] === 0;
+    ligne(`A_s${i + 1}`, e.armatures[cle], vide ? e.aucune : `HA${b.diametre} / ${b.espacement} mm, ${nombreAffiche(d.armatures[cle], 0)} mm²/m`);
+  });
 
-  return { titre: t.entrees.titre, lignes, note: null };
+  return { titre: e.titre, lignes, note: null };
+}
+
+/** Glissement et portance d'une combinaison. */
+function blocCombinaison(c: ResultatCombinaison): BlocResultat {
+  const n = textes().note;
+  const taux = textes().vue.entrees.symboleTaux;
+  return {
+    titre: `${n.glissementPortance} · ${phrase(c.nom)}`,
+    lignes: [
+      { symbole: 'H_d', libelle: n.glissement, valeur: `${aff(c.glissement.H_d)} kN` },
+      { symbole: 'N_d', libelle: n.glissement, valeur: `${aff(c.glissement.N_d)} kN` },
+      { symbole: 'R_d', libelle: n.glissement, valeur: `${aff(c.glissement.R_d)} kN` },
+      { symbole: taux, libelle: n.glissement, valeur: tauxAffiche(c.glissement.taux) },
+      { symbole: 'V', libelle: n.portance, valeur: `${aff(c.portance.V)} kN` },
+      { symbole: 'e', libelle: n.portance, valeur: `${aff(c.portance.e, 3)} m` },
+      { symbole: "B'", libelle: n.portance, valeur: `${aff(c.portance.Bp, 3)} m` },
+      { symbole: 'R_d', libelle: n.portance, valeur: `${aff(c.portance.R_d)} kN` },
+      { symbole: taux, libelle: n.portance, valeur: tauxAffiche(c.portance.taux) },
+    ],
+    note: null,
+  };
+}
+
+/** Efforts et resistances des trois sections d'une combinaison. */
+function blocSections(c: ResultatCombinaison): BlocResultat {
+  const n = textes().note;
+  return {
+    titre: `${n.sections} · ${phrase(c.nom)}`,
+    lignes: ([[n.voile, c.voile], [n.patin, c.patin], [n.talon, c.talon]] as const).flatMap(([nom, s]) => [
+      { symbole: 'M_Ed', libelle: nom, valeur: `${aff(s.M_Ed)} kN·m` },
+      { symbole: 'M_Rd', libelle: nom, valeur: `${aff(s.M_Rd)} kN·m` },
+      { symbole: 'V_Ed', libelle: nom, valeur: `${aff(s.V_Ed)} kN` },
+      { symbole: 'V_Rd,c', libelle: nom, valeur: `${aff(s.V_Rd_c)} kN` },
+      { symbole: 'A_s,min', libelle: nom, valeur: `${aff(s.As_min, 0)} mm²/m` },
+      { symbole: 'A_s', libelle: nom, valeur: `${aff(s.As, 0)} mm²/m` },
+    ]),
+    note: null,
+  };
+}
+
+/** Le detail du calcul, pour la note et le CSV : renversement, puis chaque combinaison. */
+export function blocsCalcul(r: ResultatMur): BlocResultat[] {
+  const n = textes().note;
+  const taux = textes().vue.entrees.symboleTaux;
+  return [
+    {
+      titre: n.renversement,
+      lignes: [
+        { symbole: 'M_dst,d', libelle: n.renversement, valeur: `${aff(r.renversement.pivot.M_dst_d)} kN·m` },
+        { symbole: 'M_stb,d', libelle: n.renversement, valeur: `${aff(r.renversement.pivot.M_stb_d)} kN·m` },
+        { symbole: taux, libelle: n.renversement, valeur: tauxAffiche(r.renversement.pivot.taux) },
+      ],
+      note: null,
+    },
+    ...r.combinaisons.flatMap((c) => [blocCombinaison(c), blocSections(c)]),
+  ];
 }
 
 export function blocsResultat(r: ResultatMur): BlocResultat[] {
@@ -319,19 +373,16 @@ export function blocsResultat(r: ResultatMur): BlocResultat[] {
     {
       titre: t.resultats,
       lignes: [
-        { symbole: 'taux_externe', libelle: t.groupes.externe, valeur: tauxAffiche(r.tauxExterne) },
-        { symbole: 'taux_sections', libelle: t.groupes.sections, valeur: tauxAffiche(r.tauxSections) },
-        {
-          symbole: 'taux_dispositions',
-          libelle: t.groupes.dispositions,
-          valeur: tauxAffiche(r.tauxDispositions),
-        },
+        { symbole: 'externe', libelle: t.groupes.externe, valeur: tauxAffiche(r.tauxExterne) },
+        { symbole: 'sections', libelle: t.groupes.sections, valeur: tauxAffiche(r.tauxSections) },
+        { symbole: 'dispositions', libelle: t.groupes.dispositions, valeur: tauxAffiche(r.tauxDispositions) },
       ],
       note: null,
     },
+    ...blocsCalcul(r),
   ];
 }
 
 export function messageDErreur(e: unknown): string {
-  return e instanceof Error ? e.message : String(e);
+  return phrase(e instanceof Error ? e.message : String(e));
 }

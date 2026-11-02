@@ -45,3 +45,11 @@ Exécutant arrêté par la limite de tours, tests déjà verts : section écrite
 
 - **Fichiers modifiés** : `app/src/note.ts`, `app/src/textes.ts`. Claude : symboles `q` et `génération` dans `vue.ts`, signalés par l'exécutant, qui s'est arrêté à raison sur ce point hors de son périmètre.
 - **Statut des tests** : voir le dernier commit de la tâche.
+
+## T5 — Version anglaise
+
+Exécutant arrêté par la limite de tours avec 20 tests en échec : terminé par Claude.
+
+- **Fichiers modifiés** : `app/en/index.html`, `app/src/textes.ts`, `app/src/form.ts` (exécutant) ; `vue.ts`, `note.ts`, `textes.ts` (Claude).
+- **Corrections de Claude** : `messageDErreur` ne traduisait rien ; noms de combinaisons et de cas non traduits ; `patin` et `talon` inversés en anglais ; classe `CC2` écrite en dur ; entrées sans unités ; CSV réduit à trois taux, il porte maintenant le détail (`blocsCalcul`, partagé avec la note).
+- **Statut des tests** : `lancer.mjs .` : 338 réussis, 0 échec ; typage : 0 erreur.

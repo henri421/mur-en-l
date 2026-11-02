@@ -7,7 +7,7 @@
  * conserves quand l'autre est active, simplement ignores.
  */
 
-import { lireNombre } from 'aedificium-ui';
+import { langueCourante, lireNombre } from 'aedificium-ui';
 import {
   profil2eRecommande,
   profilRecommande,
@@ -131,6 +131,11 @@ export function aireParMetre(diametre: number, espacement: number): number {
 
 class Refus extends Error {}
 
+/** Libelle de champ dans la langue courante. */
+function champ(fr: string, en: string): string {
+  return langueCourante() === 'en' ? en : fr;
+}
+
 /** Lit un nombre, ou refuse en nommant le champ. */
 function nb(brut: string, libelle: string): number {
   const v = lireNombre(brut);
@@ -139,10 +144,12 @@ function nb(brut: string, libelle: string): number {
 }
 
 function aireDe(a: ArmatureSaisie, libelle: string): number {
-  const diametre = nb(a.diametre, `${libelle}.diametre`);
+  const nomDiametre = `${libelle}${champ('.diametre', '.diameter')}`;
+  const nomEspacement = `${libelle}${champ('.espacement', '.spacing')}`;
+  const diametre = nb(a.diametre, nomDiametre);
   if (diametre === 0) return 0;
-  const espacement = nb(a.espacement, `${libelle}.espacement`);
-  if (espacement <= 0) throw new Refus(textes().messages.positifAttendu(`${libelle}.espacement`, a.espacement));
+  const espacement = nb(a.espacement, nomEspacement);
+  if (espacement <= 0) throw new Refus(textes().messages.positifAttendu(nomEspacement, a.espacement));
   return aireParMetre(diametre, espacement);
 }
 
@@ -156,26 +163,26 @@ export function lireSaisie(s: Saisie): Lecture {
       eHaut: nb(s.eHaut, 'e_haut'),
       eBas: nb(s.eBas, 'e_bas'),
       es: nb(s.es, 'e_s'),
-      patin: nb(s.patin, 'patin'),
-      talon: nb(s.talon, 'talon'),
+      patin: nb(s.patin, champ('patin', 'toe')),
+      talon: nb(s.talon, champ('talon', 'heel')),
     };
-    const gammaBeton = nb(s.gammaBeton, 'γ_béton');
+    const gammaBeton = nb(s.gammaBeton, champ('γ_béton', 'γ_concrete'));
 
     const gamma = nb(s.gamma, 'γ');
     const phi = nb(s.phi, "φ'_k");
     const q = nb(s.q, 'q');
     const partKa = nb(s.partKa, 'K_a') / 100;
     const charges = s.bandes.map((b, i) => {
-      const nom = `bande ${i + 1}`;
+      const nom = champ(`bande ${i + 1}`, `strip ${i + 1}`);
       return {
         nature: b.nature,
         q: nb(b.q, `${nom}, q`),
         distance: nb(b.distance, `${nom}, distance`),
-        largeur: nb(b.largeur, `${nom}, largeur`),
+        largeur: nb(b.largeur, `${nom}, ${champ('largeur', 'width')}`),
       };
     });
 
-    const phiBase = nb(s.phiBase, "φ'_k du sol d'assise");
+    const phiBase = nb(s.phiBase, champ("φ'_k du sol d'assise", "φ'_k of the bearing soil"));
     const deltaSurPhi = nb(s.deltaSurPhi, "δ_k / φ'_k");
     const portance =
       s.modePortance === 'saisie'
@@ -184,7 +191,7 @@ export function lireSaisie(s: Saisie): Lecture {
             mode: 'annexeD' as const,
             phi: phiBase,
             c: nb(s.c, "c'_k"),
-            gamma: nb(s.gammaBase, "γ du sol d'assise"),
+            gamma: nb(s.gammaBase, champ("γ du sol d'assise", 'γ of the bearing soil')),
             D: nb(s.D, 'D'),
           };
     const fondation = { phi: phiBase, deltaSurPhi, portance };
@@ -193,10 +200,10 @@ export function lireSaisie(s: Saisie): Lecture {
       fck: nb(s.fck, 'f_ck'),
       fyk: nb(s.fyk, 'f_yk'),
       a: nb(s.a, 'a'),
-      voileArriere: aireDe(s.voileArriere, 'voileArriere'),
-      voileAvant: aireDe(s.voileAvant, 'voileAvant'),
-      semelleHaut: aireDe(s.semelleHaut, 'semelleHaut'),
-      semelleBas: aireDe(s.semelleBas, 'semelleBas'),
+      voileArriere: aireDe(s.voileArriere, champ('voileArriere', 'wallBack')),
+      voileAvant: aireDe(s.voileAvant, champ('voileAvant', 'wallFront')),
+      semelleHaut: aireDe(s.semelleHaut, champ('semelleHaut', 'baseTop')),
+      semelleBas: aireDe(s.semelleBas, champ('semelleBas', 'baseBottom')),
     };
 
     const barres: Barres = { voileArriere: s.voileArriere, voileAvant: s.voileAvant, semelleHaut: s.semelleHaut, semelleBas: s.semelleBas };
