@@ -14,6 +14,12 @@ const FR = {
     rienAExporter: 'Aucun calcul valide à exporter : corriger la saisie.',
     nouvelleVersion: 'Une nouvelle version est disponible. Recharger maintenant ?',
   },
+  coupe: {
+    ecranVirtuel: 'écran virtuel',
+    noyauCentral: 'noyau central',
+    linearite: 'linéaire : pour les sections',
+    methodeCourante: 'Méthode courante : l’EN 1997 ne traite que la surcharge uniforme.',
+  },
   vue: {
     entrees: {
       titre: 'Entrées',
@@ -114,6 +120,12 @@ const EN: Textes = {
     format: (recu: string, attendu: string) => `File of format ${recu}: expected ${attendu}.`,
     rienAExporter: 'No valid calculation to export: correct the input.',
     nouvelleVersion: 'A new version is available. Reload now?',
+  },
+  coupe: {
+    ecranVirtuel: 'virtual screen',
+    noyauCentral: 'central core',
+    linearite: 'linear: for sections',
+    methodeCourante: 'Common method: EN 1997 covers only uniform surcharge.',
   },
   vue: {
     entrees: {
