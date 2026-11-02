@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { portanceDrainee2e, phiCalcul } from '../src/sol';
+import { coefficientPoussee, portanceDrainee2e, phiCalcul } from '../src/sol';
 import { combinaisons2e, profil2eRecommande, verifierProfil2e, type Approche2e } from '../src/profil2e';
 import { projectionBande, verifierMur, verifierMur2e, type ChargeBande, type DonneesMur, type DonneesMur2e } from '../src/mur';
 import { profilRecommande } from '../src/profil';
@@ -337,5 +337,58 @@ describe('Charges en bande', () => {
 
   it('largeur nulle refusee', () => {
     expect(() => verifierMur2e(sansQ([{ nature: 'G', q: 10, distance: 0, largeur: 0 }]), profil)).toThrow(/largeur/);
+  });
+});
+
+describe('Part de K_a', () => {
+  const remblai = (partKa: number) => ({ remblai: { gamma: 18, phi: 30, q: 10, partKa } });
+  const r1 = (partKa: number) => verifierMur({ ...mur(), ...remblai(partKa), approche: 'DA1' } as unknown as DonneesMur, profilRecommande());
+
+  it('coefficient : K_a, K_0, et le milieu', () => {
+    expect(coefficientPoussee(Math.PI / 6, 1)).toBeCloseTo(1 / 3, 10);
+    expect(coefficientPoussee(Math.PI / 6, 0)).toBeCloseTo(0.5, 10);
+    expect(coefficientPoussee(Math.PI / 6, 0.5)).toBeCloseTo(5 / 12, 10);
+    expect(coefficientPoussee(Math.PI / 6)).toBeCloseTo(1 / 3, 10);
+  });
+
+  it('100 % redonne le calcul sans le champ', () => {
+    const a = verifierMur2e(mur('a+b', remblai(1)), profil);
+    const b = verifierMur2e(mur(), profil);
+    expect(a.tauxExterne).toBe(b.tauxExterne);
+    expect(a.combinaisons[0].voile.M_Ed).toBe(b.combinaisons[0].voile.M_Ed);
+  });
+
+  it('1re generation, DA1-1 : 0 % et 50 %, a la main', () => {
+    // 1,35 x K x 18 x 3,4^2 / 2 + 1,5 x K x 10 x 3,4
+    expect(r1(0).combinaisons[0].glissement.H_d).toBeCloseTo(95.727, 2);
+    expect(r1(0.5).combinaisons[0].glissement.H_d).toBeCloseTo(79.772, 2);
+  });
+
+  it('K suit le phi de chaque combinaison', () => {
+    // (b) : phi_d = 24,791 degres, K_0 = 0,58069 ; 60,415 + 1,3 x 19,743
+    const c = verifierMur2e(mur('a+b', remblai(0)), profil).combinaisons[1];
+    expect(c.poussee.Ka).toBeCloseTo(0.58069, 4);
+    expect(c.glissement.H_d).toBeCloseTo(86.081, 2);
+  });
+
+  it('renversement et voile suivent', () => {
+    const r = verifierMur2e(mur('a+b', remblai(0)), profil);
+    expect(r.renversement.Ka).toBeCloseTo(0.5, 10);
+    // VC2(a) : 1,35 x 52,02 x 3,4/3 + 1,5 x 17 x 1,7
+    expect(r.renversement.pivot.M_dst_d).toBeCloseTo(122.943, 2);
+    // (a) : 1,35 x 0,5 x 18 x 27/6 + 1,5 x 0,5 x 10 x 9/2
+    expect(r.combinaisons[0].voile.M_Ed).toBeCloseTo(88.425, 2);
+  });
+
+  it('les bandes prennent K, la diffusion reste celle de phi', () => {
+    const avec = (partKa: number) => verifierMur2e(mur('a+b', { remblai: { gamma: 18, phi: 30, q: 0, partKa, charges: [{ nature: 'Q', q: 20, distance: 2.6, largeur: 1 }] } }), profil).combinaisons[0];
+    // 1,5 x 0,5 x 20 x (3,4 - 0,57735)
+    expect(avec(0).pousseesCalcul[1].F).toBeCloseTo(42.34, 2);
+    expect(avec(1).pousseesCalcul[1].F / avec(0).pousseesCalcul[1].F).toBeCloseTo(2 / 3, 6);
+  });
+
+  it('hors de 0 a 100 % refuse', () => {
+    expect(() => r1(1.2)).toThrow(/part de K_a/);
+    expect(() => r1(-0.1)).toThrow(/part de K_a/);
   });
 });

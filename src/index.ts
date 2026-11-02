@@ -25,7 +25,7 @@ export {
   type ClasseConsequences,
   type Profil2e,
 } from './profil2e';
-export { kaRankine, phiCalcul, portanceDrainee, portanceDrainee2e, pousseeActive, type DonneesPortance, type Poussee, type ResultatPortance } from './sol';
+export { coefficientPoussee, kaRankine, phiCalcul, portanceDrainee, portanceDrainee2e, pousseeActive, type DonneesPortance, type Poussee, type ResultatPortance } from './sol';
 export {
   contrainteSol,
   projectionBande,

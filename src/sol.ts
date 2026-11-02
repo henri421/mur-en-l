@@ -40,7 +40,17 @@ export function kaRankine(phiRadians: number): number {
   return (1 - s) / (1 + s);
 }
 
+/**
+ * Coefficient de pression retenu : K = p K_a + (1 - p) K_0, avec K_0 = 1 - sin phi'
+ * (sol normalement consolide, terre-plein horizontal). `partKa` = 1 pour la poussee
+ * active, 0 pour le repos, entre les deux pour un mur qui se deplace peu.
+ */
+export function coefficientPoussee(phiRadians: number, partKa = 1): number {
+  return partKa * kaRankine(phiRadians) + (1 - partKa) * (1 - Math.sin(phiRadians));
+}
+
 export interface Poussee {
+  /** Coefficient de pression retenu, K_a sauf si le mur est calcule plus pres du repos. */
   Ka: number;
   /** Resultante des terres (kN/m), au tiers de la hauteur depuis la base. */
   P_G: number;
