@@ -26,8 +26,8 @@ type Section = 'geometrie' | 'materiaux' | 'hypotheses' | 'charges';
 /** Rangement des lignes d'entree par symbole ; un symbole inconnu va en geometrie. */
 function sectionDe(symbole: string): Section {
   if (symbole === 'f_ck' || symbole === 'f_yk' || symbole === 'gamma_beton') return 'materiaux';
-  if (symbole === 'generation' || symbole === 'approche') return 'hypotheses';
-  if (symbole.startsWith('bande ') || symbole === 'q_surcharge' || symbole === 'K_a') return 'charges';
+  if (symbole === 'génération' || symbole === 'generation' || symbole === 'approche') return 'hypotheses';
+  if (symbole.startsWith('bande ') || symbole === 'q' || symbole === 'K_a') return 'charges';
   return 'geometrie';
 }
 

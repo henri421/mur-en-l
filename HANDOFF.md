@@ -40,3 +40,8 @@ Exécutant arrêté par la limite de tours, tests déjà verts : section écrite
 - **Décisions** : viewBox de largeur fixe 640, échelle x/y unique, marges 110 / 170 ; les textes de cotes et d’efforts passent par `notationSvg` ; `d === null` dans les lignes du pivot est ignoré (pas de bras ni de flèche).
 - **Points douteux** : le libellé `q_max` de la semelle reste un simple nombre avec `kPa`, sans symbole ; la hauteur des bandes qui se chevauchent est décalée par rangées de 18 px, valeur non spécifiée par le brief.
 - **Statut des tests** : `lancer.mjs . dessin.test` : 69 réussis, 0 échec ; `typecheck.mjs .` : 0 erreur (TypeScript 6.0.3).
+
+## T4 — Note de calcul
+
+- **Fichiers modifiés** : `app/src/note.ts`, `app/src/textes.ts`. Claude : symboles `q` et `génération` dans `vue.ts`, signalés par l'exécutant, qui s'est arrêté à raison sur ce point hors de son périmètre.
+- **Statut des tests** : voir le dernier commit de la tâche.
