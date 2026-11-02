@@ -53,3 +53,10 @@ Exécutant arrêté par la limite de tours avec 20 tests en échec : terminé pa
 - **Fichiers modifiés** : `app/en/index.html`, `app/src/textes.ts`, `app/src/form.ts` (exécutant) ; `vue.ts`, `note.ts`, `textes.ts` (Claude).
 - **Corrections de Claude** : `messageDErreur` ne traduisait rien ; noms de combinaisons et de cas non traduits ; `patin` et `talon` inversés en anglais ; classe `CC2` écrite en dur ; entrées sans unités ; CSV réduit à trois taux, il porte maintenant le détail (`blocsCalcul`, partagé avec la note).
 - **Statut des tests** : `lancer.mjs .` : 338 réussis, 0 échec ; typage : 0 erreur.
+
+## T6 (Claude)
+
+- **Fichiers** : `app/public/` (icônes), `README.md`, en-têtes des deux pages, `HANDOFF.md`.
+- **Décisions** : lien de manifeste retiré des pages, comme le gabarit (le plugin PWA l'injecte) ; liens vers le hub absolus.
+- **Douteux** : aucune compilation Vite ni test jsdom possible sur le poste : la première vérification complète est la CI du premier envoi.
+- **Tests** : banc local, tout passe (voir le résultat de la séance) ; la CI reste à constater.
