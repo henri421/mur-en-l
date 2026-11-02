@@ -62,6 +62,20 @@ const FR = {
   vue: {
     entrees: {
       symboleGeneration: 'génération',
+      symboleApproche: 'approche',
+      symboleClasse: 'classe',
+      symboleDimensions: 'dimensions',
+      symboleProfondeur: 'profondeur',
+      symboleTaux: 'taux',
+      symboleBande: (n: number) => `bande ${n}`,
+      valeurBande: (nature: string, q: string, d: string, l: string) => `${nature}, ${q} kPa, à ${d} m, large de ${l} m`,
+      classe: 'Classe de conséquences',
+      dimensions: 'Dimensions contrôlées',
+      profondeur: 'Facteur de profondeur compté',
+      dLower: 'Plus petite dimension du plus gros granulat',
+      axe: 'Axe des barres au parement',
+      oui: 'oui',
+      non: 'non',
       titre: 'Entrées',
       generation: 'Génération',
       approche: 'Approche',
@@ -75,7 +89,7 @@ const FR = {
       remblaiGamma: 'Poids volumique du remblai',
       remblaiPhi: 'Frottement interne du remblai',
       surcharge: 'Surcharge en tête du remblai',
-      partKa: 'Part de K_a reprise par le voile',
+      partKa: 'Part de K_a, le reste en K_0',
       fondationPhi: 'Frottement interne de la fondation',
       deltaSurPhi: 'Rapport delta sur phi',
       portancePhi: 'Frottement interne sous la semelle',
@@ -94,6 +108,8 @@ const FR = {
       aucune: 'aucune',
       bande: (n: number) => `Bande de charge ${n}`,
     },
+    generations: { '1re': '1re génération', '2e': '2e génération' },
+    colonnes: { combinaison: 'Combinaison', taux: 'Taux', action: 'Action', effort: 'Effort (kN)', bras: 'Bras (m)', role: 'Rôle', section: 'Section' },
     groupes: {
       externe: 'Stabilité externe',
       sections: 'Sections',
@@ -209,6 +225,20 @@ const EN: Textes = {
   vue: {
     entrees: {
       symboleGeneration: 'generation',
+      symboleApproche: 'approach',
+      symboleClasse: 'class',
+      symboleDimensions: 'dimensions',
+      symboleProfondeur: 'depth',
+      symboleTaux: 'ratio',
+      symboleBande: (n: number) => `strip ${n}`,
+      valeurBande: (nature: string, q: string, d: string, l: string) => `${nature}, ${q} kPa, at ${d} m, ${l} m wide`,
+      classe: 'Consequence class',
+      dimensions: 'Dimensions controlled',
+      profondeur: 'Depth factor counted',
+      dLower: 'Smaller dimension of the largest aggregate',
+      axe: 'Bar axis to the face',
+      oui: 'yes',
+      non: 'no',
       titre: 'Input data',
       generation: 'Generation',
       approche: 'Approach',
@@ -216,13 +246,13 @@ const EN: Textes = {
       eHaut: 'Wall thickness at top',
       eBas: 'Wall thickness at bottom',
       es: 'Base slab thickness',
-      patin: 'Heel length',
-      talon: 'Toe length',
+      patin: 'Toe length',
+      talon: 'Heel length',
       gammaBeton: 'Concrete unit weight',
       remblaiGamma: 'Backfill unit weight',
       remblaiPhi: 'Backfill friction angle',
       surcharge: 'Surcharge at backfill top',
-      partKa: 'Share of K_a carried by the wall',
+      partKa: 'Share of K_a, the rest in K_0',
       fondationPhi: 'Foundation friction angle',
       deltaSurPhi: 'delta over phi ratio',
       portancePhi: 'Friction angle under the base',
@@ -241,6 +271,8 @@ const EN: Textes = {
       aucune: 'none',
       bande: (n: number) => `Load strip ${n}`,
     },
+    generations: { '1re': '1st generation', '2e': '2nd generation' },
+    colonnes: { combinaison: 'Combination', taux: 'Ratio', action: 'Action', effort: 'Force (kN)', bras: 'Lever arm (m)', role: 'Role', section: 'Section' },
     groupes: {
       externe: 'External stability',
       sections: 'Sections',
@@ -302,5 +334,102 @@ export function textes(): Textes {
   return langueCourante() === 'en' ? EN : FR;
 }
 
+// --- Phrases du noyau ----------------------------------------------------------
+
+/** Noms de champs et de grandeurs des messages du noyau. */
+const NOMS: Record<string, string> = {
+  'La hauteur du voile': 'Wall height',
+  "L'épaisseur du voile en tête": 'Wall thickness at top',
+  "L'épaisseur du voile à la base": 'Wall thickness at base',
+  "L'épaisseur de la semelle": 'Base slab thickness',
+  'La longueur du patin': 'Toe length',
+  'La longueur du talon': 'Heel length',
+  'Le poids volumique du béton': 'Concrete unit weight',
+  'Le poids volumique du remblai': 'Backfill unit weight',
+  'La surcharge': 'Surcharge',
+  "L'intensité d'une charge en bande": 'Strip load intensity',
+  "La distance d'une charge en bande": 'Strip load distance',
+  "La largeur d'une charge en bande": 'Strip load width',
+  'Le rapport delta/phi': 'delta/phi ratio',
+  f_ck: 'f_ck',
+  f_yk: 'f_yk',
+  "La distance de l'axe des barres au parement": 'Distance from bar axis to face',
+  "L'armature supérieure de la semelle": 'Top base slab reinforcement',
+  "L'armature inférieure de la semelle": 'Bottom base slab reinforcement',
+  "L'armature du voile, côté remblai": 'Wall reinforcement, backfill side',
+  "L'armature du voile, côté avant": 'Wall reinforcement, front side',
+  'La résistance q_Rd': 'Design resistance q_Rd',
+  'La cohésion': 'Cohesion',
+  'Le poids volumique du sol de fondation': 'Foundation soil unit weight',
+  'La hauteur de terre devant le patin': 'Earth height in front of the toe',
+  D_lower: 'D_lower',
+  Renversement: 'Overturning',
+  Glissement: 'Sliding',
+  Portance: 'Bearing',
+  Excentricité: 'Eccentricity',
+  'Armature minimale': 'Minimum reinforcement',
+  Flexion: 'Bending',
+  Tranchant: 'Shear',
+};
+
+const sansApostrophe = (s: string): string => s.replace(/’/g, "'");
+
+const nomEn = (nom: string): string =>
+  NOMS[nom] ?? NOMS[sansApostrophe(nom)] ?? nom.replace(/, résistances$/, ', resistances');
+
+const EXACTES: Record<string, string> = {
+  // Noms de combinaisons.
+  '(d) VC1, résistances': '(d) VC1, resistances',
+  // Sections et origines du pivot.
+  voile: 'stem',
+  patin: 'toe',
+  talon: 'heel',
+  semelle: 'base slab',
+  'terres sur le talon': 'earth on the heel',
+  'fruit du voile': 'stem batter',
+  'surcharge sur le talon': 'surcharge on the heel',
+  'poussée des terres': 'earth pressure',
+  'poussée de la surcharge': 'surcharge pressure',
+  // Avertissements et erreurs du noyau.
+  'Résultante caractéristique hors du noyau central (e > B/6) : base partiellement décomprimée.':
+    'Characteristic resultant outside the middle third (e > B/6): base partially decompressed.',
+  "L'épaisseur du voile à la base doit être au moins égale à celle en tête (m).":
+    'Wall thickness at base must be at least that at top (m).',
+  "Charges en bande : projection par diffusion, méthode usuelle absente de l'EN 1997.":
+    'Strip loads: projection by diffusion, a usual method absent from EN 1997.',
+  "L'angle de frottement doit être compris entre 0 et 90 (°).": 'The friction angle must be between 0 and 90 (°).',
+  'La part de K_a doit être comprise entre 0 et 100 %.': 'The share of K_a must be between 0 and 100 %.',
+  'La résultante sort de la base dans tous les cas : les sections ne sont pas calculables, revoir la géométrie.':
+    'The resultant falls outside the base in all cases: sections cannot be calculated, check the geometry.',
+  'Aucun effort normal sur la base : vérifier les poids saisis.':
+    'No normal force on the base: check the input weights.',
+  "D_lower inférieur à 8 mm : hors du domaine de l'EN 1992-1-1:2023 (mm).":
+    'D_lower less than 8 mm: outside the scope of EN 1992-1-1:2023 (mm).',
+  'k_interface ne peut pas dépasser 1 (EN 1997-3 §5.5.3) (-).':
+    'k_interface cannot exceed 1 (EN 1997-3 §5.5.3) (-).',
+  "Interface trop lisse : l'annexe B.4 de l'EN 1997-3 ne donne N_gamma que pour delta au moins égal à phi'/2 ; saisir q_Rd (-).":
+    "Interface too smooth: Annex B.4 of EN 1997-3 gives N_gamma only for delta at least equal to phi'/2; enter q_Rd (-).",
+  'Excentricité de calcul supérieure à B/3 : revoir les valeurs de calcul des actions et la position du bord de la semelle (EN 1997-3 §5.6.3).':
+    'Design eccentricity greater than B/3: check the design action values and the position of the base slab edge (EN 1997-3 §5.6.3).',
+  'Largeur de calcul de la portance réduite de 0,1 m (EN 1997-3 §5.6.3).':
+    'Design bearing width reduced by 0.1 m (EN 1997-3 §5.6.3).',
+};
+
+/** Unites en toutes lettres dans les phrases du noyau. */
+const unite = (u: string): string => (u === 'degrés' ? 'degrees' : u);
+
 /** Traduit une phrase du noyau ; en francais, elle sort intacte. */
-export const phrase = traducteur({}, []);
+export const phrase = traducteur(EXACTES, [
+  // Noms de cas : verticales hautes ou basses, avec ou sans surcharge sur le talon.
+  [/^(.+), verticales inf, surcharge sur le talon$/, (_m, nom: string) => `${nomEn(nom)}, verticals low, surcharge on the heel`],
+  [/^(.+), verticales inf$/, (_m, nom: string) => `${nomEn(nom)}, verticals low`],
+  [/^(.+), verticales sup, surcharge sur le talon$/, (_m, nom: string) => `${nomEn(nom)}, verticals high, surcharge on the heel`],
+  [/^(.+), verticales sup$/, (_m, nom: string) => `${nomEn(nom)}, verticals high`],
+  // Origines du pivot qui portent un numero de bande.
+  [/^bande (\d+) sur le talon$/, (_m, n: string) => `strip ${n} on the heel`],
+  [/^poussée de la bande (\d+)$/, (_m, n: string) => `pressure from strip ${n}`],
+  // Erreurs de donnees.
+  [/^(.+) doit être un nombre strictement positif \((.+)\)\.$/, (_m, nom: string, u: string) => `${nomEn(nom)} must be a strictly positive number (${unite(u)}).`],
+  [/^(.+) doit être un nombre positif ou nul \((.+)\)\.$/, (_m, nom: string, u: string) => `${nomEn(nom)} must be a non-negative number (${unite(u)}).`],
+  [/^(.+) : équilibre de la section introuvable \(section-uls\)\.$/, (_m, nom: string) => `${nomEn(nom)}: section equilibrium not found (section-uls).`],
+]);
