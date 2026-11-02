@@ -26,3 +26,10 @@
 - `lancer.mjs . form.test` : 17 réussis, 0 échec.
 - `lancer.mjs . page.test` : 11 réussis, 0 échec.
 - `typecheck.mjs .` : 0 erreur (TypeScript 6.0.3).
+
+## T2 — Verdicts et volets
+
+Exécutant arrêté par la limite de tours, tests déjà verts : section écrite par Claude.
+
+- **Fichiers modifiés** : `app/src/vue.ts`, `app/src/textes.ts`. Claude : `barres` ajouté à `Calcul` dans `form.ts`.
+- **Statut des tests** : `lancer.mjs . vue.test` : 72 réussis, 0 échec ; typage : 0 erreur.
