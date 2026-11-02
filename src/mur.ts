@@ -14,6 +14,7 @@
  *  - poussee sur l'ecran virtuel au droit du talon, terres sur le talon comptees
  *    comme action stabilisante (EN 1997-1 §9.5.1) ;
  *  - remblai horizontal au niveau de la tete du voile, sans cohesion, sans nappe ;
+ *  - coefficient de pression K = p K_a + (1 - p) K_0 (`coefficientPoussee`), p saisi ;
  *  - charges en bande projetees par diffusion avec phi' de calcul (`projectionBande`) :
  *    sur l'ecran virtuel pour la stabilite, sur le parement pour le voile. La part
  *    posee sur le talon pese sur lui sans pousser l'ecran virtuel ;
@@ -50,7 +51,7 @@ import {
 } from 'equilibre-statique';
 import { combinaisons, verifierProfil, type Approche, type Combinaison, type JeuActions, type ProfilMur } from './profil';
 import { combinaisons2e, verifierProfil2e, type Approche2e, type ClasseConsequences, type Profil2e } from './profil2e';
-import { kaRankine, phiCalcul, portanceDrainee, portanceDrainee2e, pousseeActive, type Poussee, type ResultatPortance } from './sol';
+import { coefficientPoussee, phiCalcul, portanceDrainee, portanceDrainee2e, pousseeActive, type Poussee, type ResultatPortance } from './sol';
 
 const MM_PAR_M = 1000;
 const LARGEUR_MM = 1000;
@@ -84,6 +85,8 @@ export interface Remblai {
   q: number;
   /** Charges reparties de largeur finie, en plus de q. */
   charges?: ChargeBande[];
+  /** Part de K_a dans le coefficient de pression, de 0 a 1, le reste en K_0. 1 par defaut. */
+  partKa?: number;
 }
 
 /** Charge repartie sur une bande de la surface du remblai, parallele au mur. */
@@ -263,6 +266,8 @@ function verifierDonnees(d: DonneesMur): void {
   positif(d.gammaBeton, 'Le poids volumique du béton', 'kN/m3');
   positif(d.remblai.gamma, 'Le poids volumique du remblai', 'kN/m3');
   positifOuNul(d.remblai.q, 'La surcharge', 'kPa');
+  const partKa = d.remblai.partKa ?? 1;
+  if (!(Number.isFinite(partKa) && partKa >= 0 && partKa <= 1)) throw new Error('La part de K_a doit être comprise entre 0 et 100 %.');
   for (const c of d.remblai.charges ?? []) {
     positifOuNul(c.q, "L'intensité d'une charge en bande", 'kPa');
     positifOuNul(c.distance, "La distance d'une charge en bande", 'm');
@@ -537,7 +542,7 @@ function calculerCombinaison(d: DonneesMur, c: Combinaison, ctx: ContexteSection
   const gamma = d.remblai.gamma;
   const q = d.remblai.q;
   const phi_d = phiCalcul(d.remblai.phi, c.sol.gPhi.valeur);
-  const Ka = kaRankine(phi_d);
+  const Ka = coefficientPoussee(phi_d, d.remblai.partKa);
   const poussee = pousseeActive(b.Ht, gamma, Ka, q);
 
   // Glissement : moteur d'equilibre, EN 1997-1 §6.5.3(8) ou EN 1997-3 (5.16).
@@ -693,13 +698,13 @@ export function verifierMur(d: DonneesMur, profil: ProfilMur): ResultatMur {
 
   // EQU : jeu propre, phi' divise par son gamma de A.2. Pas de portance ici.
   const phiE = phiCalcul(d.remblai.phi, profil.EQU.sol.gPhi.valeur);
-  const KaE = kaRankine(phiE);
+  const KaE = coefficientPoussee(phiE, d.remblai.partKa);
   const pE = pousseeActive(b.Ht, d.remblai.gamma, KaE, d.remblai.q);
   const eqE = verifierEquilibre(donneesEquilibre(d, pE, 0, phiE), profilPour(profil.EQU.actions));
   const pivot = eqE.renversement[0];
 
   // Excentricite : toutes actions caracteristiques, surcharge comprise.
-  const KaK = kaRankine(phiCalcul(d.remblai.phi, 1));
+  const KaK = coefficientPoussee(phiCalcul(d.remblai.phi, 1), d.remblai.partKa);
   const pK = pousseeActive(b.Ht, d.remblai.gamma, KaK, d.remblai.q);
   const eqK = verifierEquilibre(donneesEquilibre(d, pK, 0, phiCalcul(d.remblai.phi, 1)), profilPour(profil.EQU.actions)).excentricite;
   if (!eqK) throw new Error('Aucun effort normal sur la base : vérifier les poids saisis.');
@@ -750,7 +755,7 @@ export function verifierMur2e(d: DonneesMur2e, profil: Profil2e): ResultatMur {
 
   // Basculement : phi' representatif, VC2(a) et VC2(b), le moins favorable.
   const phiRep = phiCalcul(d.remblai.phi, 1);
-  const Ka = kaRankine(phiRep);
+  const Ka = coefficientPoussee(phiRep, d.remblai.partKa);
   const pK = pousseeActive(b.Ht, d.remblai.gamma, Ka, d.remblai.q);
   const kF = profil.kF[d.consequences];
   const gQ = kF.valeur * profil.gQ.valeur;

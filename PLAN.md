@@ -35,7 +35,7 @@ Les tests lisent ces noms, qui ne se négocient pas.
 
 - `app/src/form.ts` : `Saisie` (`generation`, `approche1`, `approche2`, `consequences`, `dimensionsControlees`,
   `profondeurComptee`, `Dlower`, `h`, `eHaut`, `eBas`, `es`, `patin`, `talon`, `gammaBeton`, `gamma`, `phi`, `q`,
-  `bandes`, `phiBase`, `deltaSurPhi`, `modePortance`, `qRd`, `c`, `gammaBase`, `D`, `fck`, `fyk`, `a`, `voileArriere`,
+  `partKa` (en %, 100 par défaut), `bandes`, `phiBase`, `deltaSurPhi`, `modePortance`, `qRd`, `c`, `gammaBase`, `D`, `fck`, `fyk`, `a`, `voileArriere`,
   `voileAvant`, `semelleHaut`, `semelleBas`), `saisieParDefaut`, `lireSaisie` (rend `{ ok, calcul }`), `Calcul`,
   `verifier`, `aireParMetre`, `serialiser`, `relire`. Format de fichier : `mur-en-l/1`.
 - `app/src/vue.ts` : `verdictsHtml(r)`, `voletsHtml(r)`, `blocEntrees(calcul)`, `blocsResultat(r)`, `messageDErreur(e)`.

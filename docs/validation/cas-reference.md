@@ -101,6 +101,22 @@ matériaux de M2.
 | Voile | 176,22 | 386,2 | 138,3 |
 | Semelle | 208,51 | 490,4 | 194,0 |
 
+## Part de K_a
+
+Coefficient de pression saisi : K = p K_a + (1 - p) K_0, avec K_0 = 1 - sin φ' et le φ' de chaque combinaison.
+La part p vaut 100 % par défaut. K remplace K_a partout : terres, surcharge, bandes, renversement, voile. Les
+droites de diffusion des bandes ne changent pas.
+
+Combinaison DA1-1 (φ' = 30°, K_a = 1/3, K_0 = 0,5), H_d = 1,35 K × 104,04 + 1,5 K × 34 :
+
+| p | K | H_d (kN) |
+| --- | --- | --- |
+| 100 % | 0,33333 | 63,818 |
+| 50 % | 0,41667 | 79,772 |
+| 0 % | 0,5 | 95,727 |
+
+2e génération, (b), p = 0 : φ'd = 24,791°, K = 0,58069, H_d = 60,415 + 1,3 × 19,743 = 86,081 kN.
+
 ## Charges en bande
 
 L'EN 1997 ne donne aucune méthode pour une charge de largeur finie, dans aucune des deux générations :
