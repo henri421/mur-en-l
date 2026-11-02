@@ -254,7 +254,7 @@ export function blocEntrees(calcul: Calcul): BlocResultat {
   const approche =
     calcul.generation === '1re' ? calcul.donnees.approche : `CC2 ${calcul.donnees.approche}`;
 
-  ligne('generation', t.entrees.generation, calcul.generation);
+  ligne(t.entrees.symboleGeneration, t.entrees.generation, calcul.generation);
   ligne('approche', t.entrees.approche, approche);
 
   const geo = d.geometrie;
@@ -270,7 +270,7 @@ export function blocEntrees(calcul: Calcul): BlocResultat {
   const remblai = d.remblai;
   ligne('gamma_remblai', t.entrees.remblaiGamma, aff(remblai.gamma, 2));
   ligne('phi_remblai', t.entrees.remblaiPhi, aff(remblai.phi, 1));
-  ligne('q_surcharge', t.entrees.surcharge, aff(remblai.q, 1));
+  ligne('q', t.entrees.surcharge, aff(remblai.q, 1));
   const partKa = Number(remblai.partKa);
   ligne('K_a', t.entrees.partKa, `${aff(partKa <= 1 ? partKa * 100 : partKa, 0)} %`);
   (remblai.charges ?? []).forEach((ch, i) => {

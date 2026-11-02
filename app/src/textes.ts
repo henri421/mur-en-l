@@ -61,6 +61,7 @@ const FR = {
   },
   vue: {
     entrees: {
+      symboleGeneration: 'génération',
       titre: 'Entrées',
       generation: 'Génération',
       approche: 'Approche',
@@ -207,6 +208,7 @@ const EN: Textes = {
   },
   vue: {
     entrees: {
+      symboleGeneration: 'generation',
       titre: 'Input data',
       generation: 'Generation',
       approche: 'Approach',
