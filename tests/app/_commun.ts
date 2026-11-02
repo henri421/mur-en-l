@@ -33,6 +33,8 @@ export const SAISIES: [string, Saisie][] = [
   ['2e c', { ...saisieParDefaut(), generation: '2e', approche2: 'c' }],
   ['2e d CC3', { ...saisieParDefaut(), generation: '2e', approche2: 'd', consequences: 'CC3' }],
   ['2e controle', { ...saisieParDefaut(), generation: '2e', dimensionsControlees: true, profondeurComptee: true }],
+  ['moitie Ka', { ...saisieParDefaut(), partKa: '50' }],
+  ['repos 2e', { ...saisieParDefaut(), generation: '2e', partKa: '0' }],
   ['fruit', { ...saisieParDefaut(), eBas: '0,4' }],
   ['qRd', { ...saisieParDefaut(), modePortance: 'saisie' }],
   ['qRd 2e', { ...saisieParDefaut(), generation: '2e', modePortance: 'saisie' }],

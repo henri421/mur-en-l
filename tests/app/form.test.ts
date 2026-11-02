@@ -23,7 +23,7 @@ describe('valeurs par defaut', () => {
     expect(c.donnees.approche).toBe('DA1');
     expect(c.donnees.geometrie).toEqual({ h: 3, eHaut: 0.3, eBas: 0.3, es: 0.4, patin: 0.7, talon: 1.6 });
     expect(c.donnees.gammaBeton).toBe(25);
-    expect(c.donnees.remblai).toEqual({ gamma: 18, phi: 30, q: 10, charges: [] });
+    expect(c.donnees.remblai).toEqual({ gamma: 18, phi: 30, q: 10, partKa: 1, charges: [] });
     expect(c.donnees.fondation).toEqual({ phi: 30, deltaSurPhi: 1, portance: { mode: 'annexeD', phi: 30, c: 0, gamma: 19, D: 0.8 } });
     expect(c.donnees.armatures.fck).toBe(30);
     expect(c.donnees.armatures.fyk).toBe(500);
@@ -98,6 +98,27 @@ describe('lecture', () => {
   });
 });
 
+describe('part de K_a', () => {
+  it('saisie en %, lue en fraction, dans les deux generations', () => {
+    for (const generation of ['1re', '2e'] as const) {
+      expect(lue({ ...saisieParDefaut(), generation, partKa: '50' }).donnees.remblai.partKa).toBe(0.5);
+      expect(lue({ ...saisieParDefaut(), generation, partKa: '0' }).donnees.remblai.partKa).toBe(0);
+    }
+  });
+
+  it('illisible refuse ; hors de 0 a 100 refuse par le noyau', () => {
+    expect(refus({ ...saisieParDefaut(), partKa: 'abc' })).toMatch(/nombre attendu/);
+    expect(() => verifier(lue({ ...saisieParDefaut(), partKa: '120' }))).toThrow(/part de K_a/);
+  });
+
+  it('le calcul suit : 0 % pousse plus que 100 %', () => {
+    const r0 = verifier(lue({ ...saisieParDefaut(), partKa: '0' }));
+    const r1 = verifier(lue(saisieParDefaut()));
+    expect(r0.combinaisons[0].glissement.H_d).toBeCloseTo(95.727, 2);
+    expect(r1.combinaisons[0].glissement.H_d).toBeCloseTo(63.818, 2);
+  });
+});
+
 describe('charges en bande', () => {
   it('lues dans l ordre de la saisie', () => {
     const c = lue(avecBandes());
@@ -146,6 +167,7 @@ describe('enregistrement', () => {
       consequences: 'CC1',
       dimensionsControlees: true,
       profondeurComptee: true,
+      partKa: '50',
       modePortance: 'saisie',
       voileAvant: { diametre: '12', espacement: '200' },
     });

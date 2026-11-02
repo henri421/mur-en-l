@@ -258,6 +258,7 @@ input[type='text']:focus {
   display: none;
 }
 
+/*
  * Avertissement de perimetre en rive et en angle. Il signale un resultat
  * potentiellement NON CONSERVATIF : c'est le seul bloc d'alerte de la page, et
  * il doit se voir.
@@ -529,4 +530,55 @@ select {
     width: auto;
     white-space: normal;
   }
+}
+
+/* --- Charges en bande ------------------------------------------------- */
+
+table.bandes {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+table.bandes th,
+table.bandes td {
+  padding: 0.2rem 0.3rem;
+  text-align: left;
+  vertical-align: middle;
+}
+
+table.bandes th {
+  color: var(--texte-faible);
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+table.bandes input[type='text'] {
+  width: 4.5rem;
+}
+
+table.bandes select {
+  max-width: none;
+}
+
+table.bandes button {
+  padding: 0 0.4rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon-petit);
+  background: var(--surface-appui);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* --- Groupes de verdicts ---------------------------------------------- */
+
+.verdicts {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.verdict-groupe h3 {
+  margin-top: 0;
 }

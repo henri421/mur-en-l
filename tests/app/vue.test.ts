@@ -163,6 +163,12 @@ describe('blocs : donnees et resultats', () => {
     expect(t2).not.toContain('DA1');
   });
 
+  it('entrees : la part de K_a figure', () => {
+    const t = JSON.stringify(blocEntrees(calculer({ ...saisieParDefaut(), partKa: '50' }).calcul));
+    expect(t).toContain('K_a');
+    expect(t).toContain('50 %');
+  });
+
   it('armatures : la saisie en barres figure avec sa section', () => {
     const t = JSON.stringify(blocEntrees(calculer(saisieParDefaut()).calcul));
     expect(t).toContain('16');

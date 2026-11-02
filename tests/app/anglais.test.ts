@@ -111,6 +111,7 @@ describe('affichage en anglais', () => {
       erreur(v1({ remblai: { ...r, gamma: 0 } })),
       erreur(v1({ remblai: { ...r, phi: 95 } })),
       erreur(v1({ remblai: { ...r, q: -1 } })),
+      erreur(v1({ remblai: { ...r, partKa: 1.2 } })),
       erreur(v1({ remblai: { ...r, charges: [{ nature: 'Q', q: -1, distance: 0, largeur: 1 }] } })),
       erreur(v1({ remblai: { ...r, charges: [{ nature: 'Q', q: 1, distance: -1, largeur: 1 }] } })),
       erreur(v1({ remblai: { ...r, charges: [{ nature: 'Q', q: 1, distance: 0, largeur: 0 }] } })),
