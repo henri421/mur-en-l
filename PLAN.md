@@ -1,31 +1,30 @@
 # Mur en L : plan de l'interface
 
-Le noyau `src/` est écrit et testé en 1re génération (Claude, `tests/mur.test.ts`). Reste la page, sur le
-gabarit de `cisaillement-interface`. Maquette validée le 2026-11-02 :
-`plan-webaedificium/maquette-mur-en-l.html`.
-
-**Bloqué :** l'utilisateur veut les deux générations (2026-11-02). Le noyau de 2e génération passe avant
-les tests d'interface, car il change la saisie et l'appel à `verifierMur`. Clauses à relire :
-
-- EN 1997-3:2025 : 5.5.2, 5.5.3, 5.6, 7.5.3, 7.6, tableaux 5.2 et 7.2, annexes B.4 et D.3 ;
-- EN 1997-1:2024 : 4.4.1.3, 4.4.1.5 (facteurs de conséquence), 8.1.3.1 (basculement) ;
-- EN 1990:2023 : annexe A (VC1 à VC4), 8.3.3.1 ;
-- EN 1992-1-1:2023, avec les mécanismes du blog `tranchant-sans-armature` et `armatures-minimales`.
+Le noyau `src/` est écrit et testé pour les deux générations, charges en bande comprises (Claude,
+`tests/mur.test.ts`, `tests/mur2e.test.ts`). Reste la page, sur le gabarit de `cisaillement-interface`.
+Maquette validée le 2026-11-02, bandes ajoutées ensuite : `plan-webaedificium/maquette-mur-en-l.html`.
 
 Saisie retenue pour les armatures : diamètre et espacement, convertis dans `form.ts`. Les charges réparties
 se dessinent fermées par des flèches à leurs extrémités.
 
 ## Spécifications
 
-Entrée unique du calcul : `verifierMur(donnees, profilRecommande())`, types dans `src/index.ts`.
-L'interface ne calcule rien : les taux, B' et les efforts viennent du résultat.
+Entrées du calcul : `verifierMur(donnees, profilRecommande())` en 1re génération,
+`verifierMur2e(donnees, profil2eRecommande())` en 2e, types dans `src/index.ts`. L'interface ne calcule rien :
+les taux, B' et les efforts viennent du résultat.
 
-- **Saisie** : géométrie, remblai, fondation (annexe D ou q_Rd saisi), armatures, approche (DA1 par
-  défaut, DA2, DA3).
-- **Dessin** : coupe cotée du mur, poussée, résultantes et bras de levier (EQU).
+- **Saisie** : géométrie, remblai, charges en bande (nature G ou Q, q, distance au voile, largeur ; autant que
+  voulu), fondation (annexe D ou q_Rd saisi), armatures.
+- **Génération** : 1re par défaut, les données saisies restent au basculement. 1re : DA1, DA2, DA3.
+  2e : (a) + (b) par défaut, (c), (d) ; CC2 par défaut ; case « dimensions contrôlées » (retire la déduction
+  de 0,10 m) ; case « compter la profondeur » (facteur d_q). Valeurs recommandées annoncées à l'écran et dans
+  la note : aucune annexe nationale belge n'est disponible.
+- **Dessin** : coupe cotée du mur, poussée, résultantes et bras de levier (EQU). Bandes avec flèches de
+  fermeture et leurs deux droites de diffusion.
 - **Verdicts**, en trois groupes distincts : stabilité externe, sections, dispositions.
 - **Volets** : détail par combinaison, quatre cas de la base, sections.
-- **Note** commune d'aedificium-ui, CSV, SVG, version anglaise sous `/en/` (`textes.ts`).
+- **Note** commune d'aedificium-ui, CSV, SVG, version anglaise sous `/en/` (`textes.ts`). Toute bande saisie
+  fait afficher que sa projection n'est pas une méthode de l'EN 1997.
 
 Hors périmètre v1, annoncé à l'écran : nappe, bêche, talus incliné, cohésion du remblai, butée devant
 le patin, non drainé (saisir q_Rd), états de service (fissuration), stabilité générale.
@@ -50,10 +49,10 @@ et doivent échouer avant l'implémentation.
 export ELECTRON_RUN_AS_NODE=1; "/c/Users/henri/AppData/Local/Programs/Microsoft VS Code/Code.exe" ../_banc-local/lancer.mjs .
 ```
 
-Résultat attendu pour le noyau : tous les tests de `tests/mur.test.ts` réussis.
+Résultat attendu pour le noyau : tous les tests de `tests/mur.test.ts` et `tests/mur2e.test.ts` réussis.
 
 ## Interdits pour l'exécutant
 
-- Modifier `src/`, `tests/mur.test.ts`, `docs/validation/`, ou un test d'acceptation.
+- Modifier `src/`, `tests/mur.test.ts`, `tests/mur2e.test.ts`, `docs/validation/`, ou un test d'acceptation.
 - Calculer dans `app/`.
 - `git push`, `git tag`.
