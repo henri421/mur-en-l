@@ -115,9 +115,12 @@ export function saisieParDefaut(): Saisie {
 type Donnees1re = Parameters<typeof verifierMur>[0];
 type Donnees2e = Parameters<typeof verifierMur2e>[0];
 
+/** La saisie en barres, pour l'affichage : le noyau ne connait que les aires. */
+export type Barres = Record<'voileArriere' | 'voileAvant' | 'semelleHaut' | 'semelleBas', ArmatureSaisie>;
+
 export type Calcul =
-  | { generation: '1re'; donnees: Donnees1re }
-  | { generation: '2e'; donnees: Donnees2e };
+  | { generation: '1re'; donnees: Donnees1re; barres: Barres }
+  | { generation: '2e'; donnees: Donnees2e; barres: Barres };
 
 export type Lecture = { ok: true; calcul: Calcul } | { ok: false; message: string };
 
@@ -196,6 +199,8 @@ export function lireSaisie(s: Saisie): Lecture {
       semelleBas: aireDe(s.semelleBas, 'semelleBas'),
     };
 
+    const barres: Barres = { voileArriere: s.voileArriere, voileAvant: s.voileAvant, semelleHaut: s.semelleHaut, semelleBas: s.semelleBas };
+
     const communes = {
       geometrie,
       gammaBeton,
@@ -210,6 +215,7 @@ export function lireSaisie(s: Saisie): Lecture {
         calcul: {
           generation: '1re',
           donnees: { ...communes, approche: s.approche1 as Donnees1re['approche'] },
+          barres,
         },
       };
     }
@@ -218,6 +224,7 @@ export function lireSaisie(s: Saisie): Lecture {
       ok: true,
       calcul: {
         generation: '2e',
+        barres,
         donnees: {
           ...communes,
           approche: s.approche2 as Donnees2e['approche'],
