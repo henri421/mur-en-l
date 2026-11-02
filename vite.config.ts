@@ -5,7 +5,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 export default defineConfig({
   root: 'app',
   // Chemins relatifs : la page est servie depuis un sous-chemin sur GitHub
-  // Pages (/cisaillement-interface/), pas depuis la racine d'un domaine.
+  // Pages (/mur-en-l/), pas depuis la racine d'un domaine.
   base: './',
   build: {
     outDir: '../docs',
@@ -34,9 +34,9 @@ export default defineConfig({
         id: './',
         start_url: './',
         scope: './',
-        name: 'cisaillement-interface — reprises de betonnage, EN 1992-1-1',
-        short_name: 'Interface',
-        description: 'Cisaillement le long des surfaces de reprise de betonnage, EC2 2004 et 2e generation.',
+        name: 'mur-en-l — mur de soutenement en L, EN 1997 et EN 1992-1-1',
+        short_name: 'Mur en L',
+        description: 'Stabilite et sections d un mur de soutenement en L, Eurocodes des deux generations.',
         lang: 'fr',
         display: 'standalone',
         background_color: '#f7f7f6',
