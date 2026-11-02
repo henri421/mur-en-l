@@ -1,0 +1,532 @@
+/*
+ * Feuille de style de l interface du mur en L.
+ *
+ * Le bloc `:root` ci-dessous est l'identite commune des outils de la suite :
+ * il est IDENTIQUE dans chaque depot, sans build ni dependance
+ * partagee. Aucun jeton en dehors de cette liste, aucune couleur en dur ailleurs
+ * dans le fichier ni dans les traces SVG.
+ */
+
+:root {
+  /* ---- Chassis ---- */
+  --fond: #f7f7f6;            /* fond de page */
+  --surface: #ffffff;         /* cartes, panneaux, champs */
+  --surface-appui: #f2f1ec;   /* en-tetes de tableau, boutons au repos, blocs d'attente */
+  --texte: #1a1a1a;
+  --texte-doux: #4a4842;      /* notes, libelles de ligne, corps secondaire */
+  --texte-faible: #6a6862;    /* legend, sous-titres, surtitres */
+  --bordure: #c8c6c0;         /* filet structurant : cadres, champs, separateurs */
+  --bordure-douce: #eceae4;   /* filet interne : lignes de liste, lignes de tableau */
+
+  /* ---- Interface ---- */
+  --accent: #1e5aa8;          /* focus, liens, etat actif — JAMAIS une couleur de sens */
+  --accent-doux: #eaf1f9;     /* fond d'un champ actif, surlignage de zone */
+
+  /* ---- Couleurs de sens ---- */
+  --compression: #2f5d8a;     /* bielle, beton comprime, domaine resistant */
+  --traction: #a8442a;        /* tirant, acier tendu, point sollicitant */
+  --beton: #e7eaee;           /* aplat de matiere dans les traces */
+  --neutre: #9a978f;          /* barre a effort nul, reperes de cotation */
+
+  /* ---- Verdicts : trois etats, pas quatre ---- */
+  --ok: #1f6f3f;      --ok-fond: #eaf4ee;
+  --alerte: #8a6d00;  --alerte-fond: #fdf6e3;
+  --refus: #a52121;   --refus-fond: #f8ecec;
+
+  /* ---- Typographie ---- */
+  --sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* ---- Rayons ---- */
+  --rayon: 4px;        /* cartes, panneaux, fieldsets */
+  --rayon-petit: 3px;  /* champs, boutons, pastilles */
+
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0 0 3rem;
+  background: var(--fond);
+  color: var(--texte);
+  font: 14px/1.5 var(--sans);
+}
+
+header,
+main,
+footer {
+  max-width: 68rem;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+/* --- Barre commune de la suite ---------------------------------------- */
+
+.barre {
+  border-bottom: 1px solid var(--bordure);
+  background: var(--surface);
+}
+
+.barre-corps {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  max-width: 68rem;
+  margin: 0 auto;
+  padding: 0.45rem 1rem;
+}
+
+.barre-nom {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--texte-faible);
+}
+
+.barre-lien {
+  color: var(--accent);
+  font-size: 0.8rem;
+  text-decoration: none;
+}
+
+.barre-lien:hover {
+  text-decoration: underline;
+}
+
+.barre-actions {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+}
+
+/* Bouton FR / EN : lien vers l'autre version de la page (`en/` ou `../`). */
+.barre-langue {
+  border: 1px solid var(--bordure);
+  border-radius: 4px;
+  padding: 0.05rem 0.45rem;
+  color: var(--texte);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+}
+
+.barre-langue:hover {
+  background: var(--surface-appui);
+}
+
+header {
+  padding-top: 1.2rem;
+  padding-bottom: 0.9rem;
+}
+
+h1 {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+h2 {
+  margin: 0 0 0.6rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+/* Phrase de presentation sous le titre : c'est une note, pas un surtitre —
+   le nom de classe est trompeur, le role decide du style. */
+.sous-titre {
+  margin: 0.25rem 0 0;
+  color: var(--texte-doux);
+  font-size: 0.8rem;
+}
+
+/*
+ * Reserve d'usage, permanente : elle ne prend pas la forme d'un bloc d'alerte,
+ * qui reste celle des avertissements CONDITIONNELS rendus par le noyau.
+ */
+.avertissement {
+  margin: 0.35rem 0 0;
+  color: var(--alerte);
+  font-size: 0.8rem;
+}
+
+main {
+  display: grid;
+  grid-template-columns: minmax(20rem, 26rem) 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+section {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--surface);
+}
+
+#saisie {
+  grid-row: auto;
+}
+
+@media (max-width: 60rem) {
+  main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #saisie {
+    grid-row: auto;
+  }
+}
+
+/* --- Formulaire ------------------------------------------------------ */
+
+fieldset {
+  /* Un `fieldset` vaut par defaut `min-inline-size: min-content` : sans cette
+     neutralisation, les cadres n'ont pas tous la meme largeur. */
+  min-inline-size: 0;
+  margin: 0 0 0.9rem;
+  padding: 0.7rem 0.8rem 0.8rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--surface);
+}
+
+legend {
+  padding: 0 0.35rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--texte-faible);
+}
+
+label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin: 0.35rem 0;
+  min-width: 0;
+}
+
+/* Un `label` en flex fait de CHACUN de ses enfants un element de grille :
+   sans ce span, `d<sub>y</sub> (mm)` se disloquerait en trois morceaux. */
+label > span {
+  font-size: 0.85rem;
+}
+
+label.case {
+  justify-content: flex-start;
+}
+
+input[type='text'],
+select {
+  padding: 0.28rem 0.4rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon-petit);
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+}
+
+input[type='text'] {
+  width: 8.5rem;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+input[type='text']:focus-visible,
+input[type='checkbox']:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Le champ n'est habille qu'au moment de la saisie. */
+input[type='text']:focus {
+  background: var(--accent-doux);
+}
+
+.groupe[hidden] {
+  display: none;
+}
+
+ * Avertissement de perimetre en rive et en angle. Il signale un resultat
+ * potentiellement NON CONSERVATIF : c'est le seul bloc d'alerte de la page, et
+ * il doit se voir.
+ */
+.alerte {
+  margin: 0 0 0.8rem;
+  padding: 0.65rem 0.8rem;
+  border-left: 3px solid var(--alerte);
+  border-radius: var(--rayon);
+  background: var(--alerte-fond);
+  color: var(--alerte);
+  font-size: 0.85rem;
+}
+
+.note {
+  margin: 0.7rem 0 0;
+  color: var(--texte-doux);
+  font-size: 0.8rem;
+}
+
+.erreur {
+  margin: 0 0 0.8rem;
+  padding: 0.65rem 0.8rem;
+  border-left: 3px solid var(--refus);
+  border-radius: var(--rayon);
+  background: var(--refus-fond);
+  color: var(--refus);
+  font-size: 0.85rem;
+}
+
+.erreur[hidden] {
+  display: none;
+}
+
+.grandeurs {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.grandeurs th,
+.grandeurs td {
+  padding: 0.28rem 0.5rem;
+  border-bottom: 1px solid var(--bordure-douce);
+  text-align: left;
+  vertical-align: baseline;
+}
+
+/* Le symbole est l'en-tete de sa ligne : il porte l'appui, et le monoespace,
+   parce qu'il se lit avec le nombre d'en face. */
+.grandeurs th {
+  width: 7rem;
+  background: var(--surface-appui);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  font-weight: normal;
+  white-space: nowrap;
+}
+
+.grandeurs .libelle {
+  color: var(--texte-doux);
+  font-size: 0.85rem;
+}
+
+/* Le monoespace tabulaire suffit a faire tenir la colonne : le gras en plus
+   l'alourdirait, et il est reserve aux verdicts. */
+.grandeurs .valeur {
+  width: 8rem;
+  font-family: var(--mono);
+  font-weight: normal;
+  text-align: right;
+  white-space: nowrap;
+}
+
+footer {
+  margin-top: 1.2rem;
+  color: var(--texte-doux);
+  font-size: 0.8rem;
+}
+
+/* --- Impression ------------------------------------------------------- */
+
+/*
+ * Redefinir `--fond` ne suffit pas : le fond peint est celui de `body`. La
+ * barre, elle, n'a pas de sens sur le papier.
+ */
+@media print {
+  .barre {
+    display: none;
+  }
+
+  body {
+    background: var(--surface);
+  }
+}
+
+/* --- Profil actif : affiche en permanence ----------------------------- */
+
+#profil {
+  grid-column: 1 / -1;
+  border-left: 3px solid var(--accent);
+}
+
+.profil-nom {
+  margin: 0;
+}
+
+.profil-perimetre {
+  margin: 0.2rem 0 0.6rem;
+  color: var(--texte-doux);
+  font-size: 0.8rem;
+}
+
+.origines .origine {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.origines .origine-saisie {
+  color: var(--accent);
+}
+
+.origines .source {
+  color: var(--texte-faible);
+  font-size: 0.75rem;
+}
+
+.defilement {
+  overflow-x: auto;
+  margin: 0.6rem 0;
+}
+
+.zones {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.zones th,
+.zones td {
+  padding: 0.22rem 0.45rem;
+  border-bottom: 1px solid var(--bordure-douce);
+  text-align: left;
+  vertical-align: top;
+}
+
+.zones th {
+  background: var(--surface-appui);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.zones td.valeur {
+  font-family: var(--mono);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.clause {
+  color: var(--texte-faible);
+  font-size: 0.75rem;
+}
+
+.boutons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.boutons button {
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon-petit);
+  background: var(--surface-appui);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.boutons button:hover {
+  border-color: var(--accent);
+}
+
+/* Colonne des resultats : ses sections s'empilent sans s'aligner sur la
+   hauteur du formulaire d'en face. */
+.colonne {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  align-content: start;
+}
+
+/* --- Generation ------------------------------------------------------ */
+
+.generations {
+  display: flex;
+  gap: 0;
+  margin: 0 0 1rem;
+}
+
+.generations button {
+  flex: 1;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--bordure);
+  background: var(--surface-appui);
+  color: var(--texte-doux);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.generations button:first-child { border-radius: var(--rayon-petit) 0 0 var(--rayon-petit); }
+.generations button:last-child { border-radius: 0 var(--rayon-petit) var(--rayon-petit) 0; border-left: none; }
+
+.generations button[aria-pressed='true'] {
+  background: var(--accent-doux);
+  border-color: var(--accent);
+  color: var(--texte);
+  font-weight: 600;
+}
+
+/* --- Verdict ----------------------------------------------------------- */
+
+.verdict {
+  margin: 0 0 0.5rem;
+  padding: 0.6rem 0.8rem;
+  border-left: 3px solid;
+  border-radius: var(--rayon);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.verdict-conforme { border-color: var(--ok); background: var(--ok-fond); color: var(--ok); }
+.verdict-non-conforme { border-color: var(--refus); background: var(--refus-fond); color: var(--refus); }
+.verdict-non-applicable { border-color: var(--alerte); background: var(--alerte-fond); color: var(--alerte); }
+
+.jauge { height: 6px; background: var(--surface-appui); border-radius: 3px; overflow: hidden; }
+.jauge > div { height: 100%; background: var(--ok); }
+.jauge.depasse > div { background: var(--refus); }
+.taux { margin: 0.3rem 0; font-family: var(--mono); font-size: 0.85rem; }
+
+.motif { margin: 0 0 0.8rem; font-size: 0.85rem; }
+
+h3 { margin: 0.8rem 0 0.2rem; font-size: 0.9rem; }
+
+/* --- Coupe --------------------------------------------------------------- */
+
+svg { width: 100%; height: auto; max-width: 34rem; display: block; }
+svg .reprise { fill: var(--beton); stroke: var(--texte); stroke-width: 1.2; }
+svg .en-place { fill: var(--surface-appui); stroke: var(--texte); stroke-width: 1.2; }
+svg .interface { stroke: var(--traction); stroke-width: 2; stroke-dasharray: 8 5; }
+svg .barre { stroke: var(--compression); stroke-width: 3; stroke-linecap: round; }
+svg .effort { stroke: var(--texte); stroke-width: 1.5; }
+svg .pointe { fill: var(--texte); }
+svg .etiquette { fill: var(--texte-doux); font-size: 11px; font-family: var(--sans); }
+
+/* Une liste aux options longues ne sort pas de son cadre. */
+select {
+  max-width: 60%;
+}
+
+/* Sur un telephone, les intitules et valeurs longs passent a la ligne plutot
+   que d'elargir la page. */
+@media (max-width: 40rem) {
+  table.grandeurs th,
+  table.grandeurs td.valeur {
+    width: auto;
+    white-space: normal;
+  }
+}
