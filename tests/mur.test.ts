@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { kaRankine, phiCalcul, portanceDrainee } from '../src/sol';
 import { combinaisons, profilRecommande, verifierProfil } from '../src/profil';
 import { contrainteSol, verifierMur, type DonneesMur } from '../src/mur';
+import { deriverProfil } from '../src/coefficients';
 
 const profil = profilRecommande();
 
@@ -289,4 +290,70 @@ describe('Verdict et bords', () => {
       expect(() => verifierMur(d, profil)).toThrow();
     });
   }
+});
+
+describe('DA2* : portance avec les effets caracteristiques', () => {
+  // Calcul a la main : H_k = 34,68 + 11,333 = 46,013 kN ; M_k = 25,496 kN.m ; e = 0,18900 m ;
+  // B' = 2,22201 m ; 1 - H/V = 0,65891 ; R_d = 385,31 kN ; V_d = 1,35 x 134,9 = 182,115 kN.
+  const r = verifierMur(mur('DA2*'), profil).combinaisons[0];
+
+  it('une seule combinaison, nommee DA2*', () => {
+    expect(verifierMur(mur('DA2*'), profil).combinaisons.map((c) => c.nom)).toEqual(['DA2*']);
+  });
+
+  it('e, B\' et R_d viennent des actions caracteristiques', () => {
+    const c = r.cas.find((x) => x.nom === 'DA2*, verticales sup');
+    expect(c?.caracteristique?.e).toBeCloseTo(0.189, 4);
+    expect(c?.Bp).toBeCloseTo(2.22201, 4);
+    expect(c?.R_d).toBeCloseTo(385.31, 1);
+    expect(c?.V).toBeCloseTo(182.115, 3);
+  });
+
+  it('le cas gouvernant est celui des verticales majorees : taux 0,4726', () => {
+    expect(r.portance.nom).toBe('DA2*, verticales sup');
+    expect(r.portance.taux).toBeCloseTo(0.4726, 3);
+  });
+
+  it('glissement identique a DA2', () => {
+    expect(r.glissement.taux).toBeCloseTo(0.901, 3);
+  });
+});
+
+describe('principe de source unique', () => {
+  it('DA2, verticales inf : terres a 1,35 avec la poussee, taux 0,5226 au lieu de 0,775', () => {
+    // V = 48,5 + 1,35 x 86,4 = 165,14 kN ; M = 33,765 kN.m ; e = 0,20447 m ; R_d = 315,97 kN.
+    const sans = verifierMur(mur('DA2'), profil).combinaisons[0];
+    const avec = verifierMur({ ...mur('DA2'), sourceUnique: true }, profil).combinaisons[0];
+    const cas = avec.cas.find((x) => x.nom === 'DA2, verticales inf');
+    expect(cas?.V).toBeCloseTo(165.14, 2);
+    expect(cas?.R_d).toBeCloseTo(315.97, 1);
+    expect(avec.portance.taux).toBeCloseTo(0.5226, 3);
+    expect(sans.portance.taux).toBeCloseTo(0.775, 3);
+  });
+
+  it('ne touche ni le glissement ni le renversement', () => {
+    const sans = verifierMur(mur('DA2'), profil);
+    const avec = verifierMur({ ...mur('DA2'), sourceUnique: true }, profil);
+    expect(avec.combinaisons[0].glissement.taux).toBeCloseTo(sans.combinaisons[0].glissement.taux, 10);
+    expect(avec.renversement.taux).toBeCloseTo(sans.renversement.taux, 10);
+  });
+});
+
+describe('profil modifie par l utilisateur', () => {
+  it('gamma_Rv = 1,0 : R_d de portance DA2 multiplie par 1,4', () => {
+    const p = deriverProfil(profil, { 'R2.gRv': 1.0 });
+    expect(verifierMur(mur('DA2'), p).combinaisons[0].portance.R_d).toBeCloseTo(174.16 * 1.4, 0);
+  });
+
+  it('gamma_phi = 1,0 en EQU : K_a = 1/3 dans le renversement', () => {
+    const p = deriverProfil(profil, { 'EQU.sol.gPhi': 1.0 });
+    expect(verifierMur(mur(), p).renversement.Ka).toBeCloseTo(1 / 3, 10);
+  });
+
+  it('C_Rd,c = 0,15 / gamma_C et k_1 = 0,12 : V_Rd,c du voile 127,21 kN au lieu de 146,28', () => {
+    // k = 1,8944 ; (100 rho f_ck)^(1/3) = 2,5236 ; v_min = 0,49985 MPa gouverne ; sigma_cp = 0,075 MPa.
+    const p = deriverProfil(profil, { 'beton.cRdc': 0.15, 'beton.k1': 0.12 });
+    expect(verifierMur(mur(), p).combinaisons[0].voile.V_Rd_c).toBeCloseTo(127.21, 1);
+    expect(verifierMur(mur(), profil).combinaisons[0].voile.V_Rd_c).toBeCloseTo(146.28, 1);
+  });
 });

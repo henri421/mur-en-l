@@ -53,6 +53,10 @@ les poussées. À faire avant tout autre lot : chaque lot suivant doit faire bai
 
 ### L1. Options de méthode (M)
 
+État au 2026-11-03 : points 1, 2 et 3 faits (DA2*, source unique, coefficients modifiables à
+l'écran au lieu de profils d'annexe codés en dur) ; restent 4 et 5. L0 : `tests/bancs.test.ts`
+compare au rapport Frilo les grandeurs dont les hypothèses coïncident.
+
 Ce lot referme l'essentiel des écarts du mur A.
 
 1. **Approche DA2*** (DIN 1054:2010, 2.4.7.3.4) : excentricité, inclinaison et largeur efficace
@@ -60,10 +64,9 @@ Ce lot referme l'essentiel des écarts du mur A.
    `DA2*`), `calculerCombinaison` dans `src/mur.ts`.
 2. **Principe de source unique** (EN 1997-1 §2.4.2(9), note) : case qui affecte le même coefficient
    aux terres sur le talon et à la poussée. Supprime les cas « verticales inf » pour le remblai.
-3. **Profils d'annexe nationale** : profil DIN pour rejouer Frilo (γ_φ = 1,0 en EQU, γ_Rv = 1,4,
-   γ_Rh = 1,1, C_Rd,c = 0,10, k₁ = 0,12), puis profils belge et luxembourgeois quand leurs valeurs
-   sont sourcées. Chaque valeur porte sa source, comme aujourd'hui. Demande d'exposer C_Rd,c et k₁
-   dans `section-uls`.
+3. **Coefficients modifiables** : aucune annexe codée en dur. Les valeurs recommandées sont
+   proposées, chacune se change à l'écran ; pour rejouer Frilo : γ_φ = 1,0 en EQU, C_Rd,c γ_C = 0,15,
+   k₁ = 0,12. C_Rd,c et k₁ passent par les options de `shearWithoutLinks` de `section-uls`.
 4. **δ sur le parement réel** (EN 1997-1 §9.5.1(6)) pour le voile : K_a de Coulomb, composante
    verticale E_av dans N et son moment excentré. Et δ sur l'about du talon pour l'écran virtuel,
    en option.

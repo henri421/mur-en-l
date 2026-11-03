@@ -116,6 +116,21 @@ Stabilité générale par Bishop (taux 0,82), tassement et rotation ne sont pas 
 l'outil. Le rapport Frilo affiche un tassement moyen de 17 mm dans le récapitulatif et de 1,738 mm
 dans le détail du calcul : l'une des deux valeurs est à vérifier dans Frilo.
 
+## Après les options DA2* et source unique
+
+Mêmes données, γ_φ = 1,0 en EQU, C_Rd,c γ_C = 0,15 et k₁ = 0,12 saisis dans les coefficients :
+
+| Application | Portance | Cas gouvernant |
+| :- | -: | :- |
+| DA2 | 8,69 | verticales inf |
+| DA2, source unique | 2,79 | verticales inf |
+| DA2* | 2,17 | verticales sup |
+| Frilo sans C | 1,56 | |
+
+Le taux DA2* de l'application, 2,17, est celui obtenu à la main plus haut avec les mêmes actions :
+l'écart restant à Frilo vient des charges en bande (lot L2 du plan). V_Rd,c du voile passe à
+176,8 kN/m (Frilo 170,0, effort normal différent).
+
 ## Constat
 
 La chaîne de calcul de l'outil est cohérente avec Frilo là où les hypothèses coïncident (poids,

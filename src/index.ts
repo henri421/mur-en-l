@@ -12,6 +12,7 @@ export {
   type Approche,
   type Combinaison,
   type JeuActions,
+  type JeuBeton,
   type JeuResistance,
   type JeuSol,
   type ProfilMur,
@@ -25,6 +26,7 @@ export {
   type ClasseConsequences,
   type Profil2e,
 } from './profil2e';
+export { coefficientsModifies, deriverProfil, listerCoefficients, type Coefficient } from './coefficients';
 export { coefficientPoussee, kaRankine, phiCalcul, portanceDrainee, portanceDrainee2e, pousseeActive, type DonneesPortance, type Poussee, type ResultatPortance } from './sol';
 export {
   contrainteSol,

@@ -3,6 +3,7 @@ import { coefficientPoussee, portanceDrainee2e, phiCalcul } from '../src/sol';
 import { combinaisons2e, profil2eRecommande, verifierProfil2e, type Approche2e } from '../src/profil2e';
 import { projectionBande, verifierMur, verifierMur2e, type ChargeBande, type DonneesMur, type DonneesMur2e } from '../src/mur';
 import { profilRecommande } from '../src/profil';
+import { deriverProfil } from '../src/coefficients';
 
 const profil = profil2eRecommande();
 
@@ -390,5 +391,18 @@ describe('Part de K_a', () => {
   it('hors de 0 a 100 % refuse', () => {
     expect(() => r1(1.2)).toThrow(/part de K_a/);
     expect(() => r1(-0.1)).toThrow(/part de K_a/);
+  });
+});
+
+describe('2e generation, profil modifie', () => {
+  it('gamma_V = 1,5 : V_Rd,c du voile 176,219 x 1,4 / 1,5 = 164,471 kN', () => {
+    const p = deriverProfil(profil, { gV: 1.5 });
+    expect(verifierMur2e(mur(), p).combinaisons[0].voile.V_Rd_c).toBeCloseTo(164.471, 2);
+  });
+
+  it('source unique : sans effet sur le basculement', () => {
+    const a = verifierMur2e(mur(), profil);
+    const b = verifierMur2e({ ...mur(), sourceUnique: true }, profil);
+    expect(b.renversement.taux).toBeCloseTo(a.renversement.taux, 10);
   });
 });

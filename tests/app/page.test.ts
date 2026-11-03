@@ -17,7 +17,7 @@ describe('page', () => {
   it('un champ par valeur saisie', () => {
     const d = saisieParDefaut();
     for (const [cle, v] of Object.entries(d)) {
-      if (cle === 'generation' || cle === 'bandes') continue;
+      if (cle === 'generation' || cle === 'bandes' || cle === 'coefficients1' || cle === 'coefficients2') continue;
       if (typeof v === 'object') {
         expect(page).toContain(`data-champ="${cle}.diametre"`);
         expect(page).toContain(`data-champ="${cle}.espacement"`);
@@ -34,11 +34,11 @@ describe('page', () => {
     expect(page).toContain('data-groupe="2e"');
     expect(page).toContain('data-portance="annexeD"');
     expect(page).toContain('data-portance="saisie"');
-    for (const v of ['DA1', 'DA2', 'DA3', 'a+b', 'c', 'd', 'CC1', 'CC2', 'CC3']) expect(page).toContain(`value="${v}"`);
+    for (const v of ['DA1', 'DA2', 'DA2*', 'DA3', 'a+b', 'c', 'd', 'CC1', 'CC2', 'CC3']) expect(page).toContain(`value="${v}"`);
   });
 
   it('bandes, zones de resultat, options du dessin, sorties', () => {
-    for (const r of ['bandes', 'erreur', 'vues', 'coupe', 'base', 'projection', 'verdicts', 'volets', 'projet', 'element', 'ouvrir']) {
+    for (const r of ['bandes', 'coefficients', 'erreur', 'vues', 'coupe', 'base', 'projection', 'verdicts', 'volets', 'projet', 'element', 'ouvrir']) {
       expect(page).toContain(`data-role="${r}"`);
     }
     for (const a of ['ajouter-bande', 'exporter-note', 'exporter-coupe', 'exporter-resultats', 'enregistrer', 'reinitialiser']) {

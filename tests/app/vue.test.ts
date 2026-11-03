@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { NOMS_GRECS, blocsEnTexte, constatsAffichage, notationHtml, nombreAffiche, resultatsEnCsv, tauxAffiche, texteVisible } from 'aedificium-ui';
 import { saisieParDefaut } from '../../app/src/form';
-import { blocEntrees, blocsResultat, messageDErreur, verdictsHtml, voletsHtml } from '../../app/src/vue';
+import { blocEntrees, blocsResultat, coefficientsHtml, messageDErreur, verdictsHtml, voletsHtml } from '../../app/src/vue';
 import { avecBandes, calculer, SAISIES } from './_commun';
 
 const GROUPES = ['externe', 'sections', 'dispositions'];
@@ -209,5 +209,36 @@ describe('texte visible : notations, arrondis, accents', () => {
   it('message d erreur : celui du noyau', () => {
     expect(messageDErreur(new Error('La hauteur du voile doit être un nombre strictement positif (m).'))).toContain('hauteur du voile');
     expect(messageDErreur('texte')).toBe('texte');
+  });
+});
+
+describe('coefficients partiels', () => {
+  it('un champ par coefficient modifiable, valeur recommandee rappelee', () => {
+    const html = coefficientsHtml(saisieParDefaut());
+    expect(html).toContain('data-coef="EQU.sol.gPhi"');
+    expect(html).toContain('data-coef="beton.cRdc"');
+    expect(html).not.toContain('gQ_stb');
+    expect(html).toContain('placeholder="1,25"');
+    expect(html).toContain('data-action="coefficients-recommandes"');
+    expect(html).toContain('valeurs recommandées');
+  });
+
+  it('2e generation : facteurs par classe et gamma_V', () => {
+    const html = coefficientsHtml({ ...saisieParDefaut(), generation: '2e' });
+    expect(html).toContain('data-coef="kF.CC2"');
+    expect(html).toContain('data-coef="gV"');
+  });
+
+  it('le resume compte les valeurs differentes de la recommandee', () => {
+    expect(coefficientsHtml({ ...saisieParDefaut(), coefficients1: { 'R2.gRv': '1,5', 'R2.gRh': '1,1' } })).toContain('1 modifié');
+  });
+
+  it('les entrees listent chaque coefficient modifie avec sa valeur recommandee', () => {
+    const { calcul } = calculer({ ...saisieParDefaut(), coefficients1: { 'EQU.sol.gPhi': '1' } });
+    const l = blocEntrees(calcul).lignes.find((x) => x.symbole === "γ_phi'");
+    expect(l?.libelle).toContain('EQU, sol');
+    expect(l?.valeur).toBe('1 (recommandée : 1,25)');
+    const r = blocEntrees(calculer(saisieParDefaut()).calcul).lignes.find((x) => x.symbole === 'coefficients');
+    expect(r?.valeur).toBe('valeurs recommandées');
   });
 });

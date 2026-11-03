@@ -29,7 +29,7 @@
         Stability and sections of an L-shaped retaining wall, Eurocodes of both generations.
       </p>
       <p class="avertissement">
-        The recommended values of the standards are used, in the absence of a Belgian national annex.
+        The recommended values of the standards are proposed by default; each partial factor can be changed, for instance to apply a national annex.
         Check these values before any use on a real structure.
       </p>
     </header>
@@ -51,6 +51,7 @@
                 <select data-champ="approche1">
                   <option value="DA1">DA1</option>
                   <option value="DA2">DA2</option>
+                  <option value="DA2*">DA2* (characteristic effects)</option>
                   <option value="DA3">DA3</option>
                 </select>
               </label>
@@ -86,6 +87,11 @@
                 <input type="text" inputmode="decimal" data-champ="Dlower" />
               </label>
             </div>
+            <label class="case">
+              <input type="checkbox" data-champ="sourceUnique" />
+              <span>Single source principle (earth on the heel)</span>
+            </label>
+            <div data-role="coefficients"></div>
           </fieldset>
 
           <fieldset>
@@ -266,7 +272,7 @@
           </fieldset>
 
           <p class="avertissement">
-            Without a national annex, the recommended values of the standards are used.
+            Recommended values of the standards by default; a national annex is entered in the partial factors.
           </p>
 
           <div class="boutons">

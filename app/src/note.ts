@@ -10,7 +10,7 @@ import type { ResultatMur, VerifSection } from '../../src/mur';
 import type { Calcul } from './form';
 import { coupe, projectionSvg, vuesDisponibles } from './dessin';
 import { phrase, textes } from './textes';
-import { blocEntrees, blocsCalcul, messageDErreur } from './vue';
+import { blocEntrees, blocsCalcul, estSymboleCoefficient, messageDErreur } from './vue';
 
 const NORMES: Record<ResultatMur['generation'], string> = {
   '1re': 'EN 1997-1:2004, EN 1992-1-1:2004',
@@ -18,14 +18,17 @@ const NORMES: Record<ResultatMur['generation'], string> = {
 };
 
 const MATERIAUX = new Set(['f_ck', 'f_yk', 'gamma_c', 'D_lower', 'gamma', "phi'", "phi'_b", 'delta/phi', "c'", 'gamma_b', 'q_Rd']);
-const HYPOTHESES = new Set(['génération', 'generation', 'approche', 'approach', 'classe', 'class', 'dimensions', 'profondeur', 'depth']);
+const HYPOTHESES = new Set([
+  'génération', 'generation', 'approche', 'approach', 'classe', 'class', 'dimensions', 'profondeur', 'depth',
+  'source unique', 'single source', 'coefficients', 'factors',
+]);
 
 type Section = 'geometrie' | 'materiaux' | 'hypotheses' | 'charges';
 
 /** Rangement des lignes d'entree par symbole ; un symbole inconnu va en geometrie. */
 function sectionDe(symbole: string): Section {
   if (MATERIAUX.has(symbole)) return 'materiaux';
-  if (HYPOTHESES.has(symbole)) return 'hypotheses';
+  if (HYPOTHESES.has(symbole) || estSymboleCoefficient(symbole)) return 'hypotheses';
   if (/^(bande|strip) /.test(symbole) || symbole === 'q' || symbole === 'K_a') return 'charges';
   return 'geometrie';
 }

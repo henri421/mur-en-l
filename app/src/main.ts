@@ -24,7 +24,7 @@ import { baseSvg, coupe, phiDeLaVue, projectionSvg, vuesDisponibles } from './de
 import { STYLES_TRACE } from './export';
 import { noteDuCalcul } from './note';
 import { textes } from './textes';
-import { blocEntrees, blocsResultat, messageDErreur, verdictsHtml, voletsHtml } from './vue';
+import { blocEntrees, blocsResultat, coefficientsHtml, messageDErreur, verdictsHtml, voletsHtml } from './vue';
 import './style.css';
 
 // La langue d'abord : tout rendu la lit (`index.html` ou `en/index.html`).
@@ -43,6 +43,7 @@ const formulaire = exige<HTMLFormElement>('#formulaire');
 const zones = {
   erreur: exige<HTMLElement>('[data-role="erreur"]'),
   bandes: exige<HTMLElement>('[data-role="bandes"]'),
+  coefficients: exige<HTMLElement>('[data-role="coefficients"]'),
   vues: exige<HTMLElement>('[data-role="vues"]'),
   coupe: exige<HTMLElement>('[data-role="coupe"]'),
   base: exige<HTMLElement>('[data-role="base"]'),
@@ -118,8 +119,22 @@ function ecrireSaisie(): void {
     else e.value = String(v);
   }
   dessinerBandes();
+  dessinerCoefficients();
   ajusterGeneration();
   ajusterModePortance();
+}
+
+/** Les coefficients de la generation courante ; le volet reste ouvert s'il l'etait. */
+function dessinerCoefficients(): void {
+  const ouvert = zones.coefficients.querySelector('details')?.open ?? false;
+  zones.coefficients.innerHTML = coefficientsHtml(saisie);
+  const d = zones.coefficients.querySelector('details');
+  if (d !== null) d.open = ouvert;
+}
+
+/** Table des coefficients saisis pour la generation courante. */
+function tableCoefficients(): Record<string, string> {
+  return saisie.generation === '1re' ? saisie.coefficients1 : saisie.coefficients2;
 }
 
 /** Les lignes de bandes vivent dans la zone `data-role="bandes"`, une par charge. */
@@ -242,6 +257,18 @@ formulaire.addEventListener('input', (evenement) => {
     return recalculer();
   }
 
+  const coef = cible.dataset.coef;
+  if (coef !== undefined) {
+    tableCoefficients()[coef] = cible.value;
+    // Seul le resume change : redessiner le tableau ferait perdre la saisie en cours.
+    const resume = zones.coefficients.querySelector('[data-role="resume-coefficients"]');
+    const neuf = document.createElement('div');
+    neuf.innerHTML = coefficientsHtml(saisie);
+    const r = neuf.querySelector('[data-role="resume-coefficients"]');
+    if (resume !== null && r !== null) resume.textContent = r.textContent;
+    return recalculer();
+  }
+
   const chemin = cible.dataset.champ;
   if (chemin === undefined) return;
   const valeur = cible instanceof HTMLInputElement && cible.type === 'checkbox' ? cible.checked : cible.value;
@@ -289,6 +316,12 @@ document.addEventListener('click', (evenement) => {
     const i = Number(cible.dataset.bande);
     if (Number.isInteger(i)) saisie.bandes.splice(i, 1);
     dessinerBandes();
+    return recalculer();
+  }
+  if (action === 'coefficients-recommandes') {
+    if (saisie.generation === '1re') saisie.coefficients1 = {};
+    else saisie.coefficients2 = {};
+    dessinerCoefficients();
     return recalculer();
   }
   if (action === 'enregistrer') {

@@ -40,6 +40,10 @@ export interface Profil2e {
   gM2: ValeurSourcee;
   gRN: ValeurSourcee;
   gRT: ValeurSourcee;
+  /** EN 1992-1-1:2023 : gamma_C et gamma_S (tableau 4.3), gamma_V (4.3.3). */
+  gC: ValeurSourcee;
+  gS: ValeurSourcee;
+  gV: ValeurSourcee;
 }
 
 const SOURCE_90 = 'EN 1990:2023, tableau A.1.8, valeur recommandée';
@@ -66,6 +70,9 @@ export function profil2eRecommande(): Profil2e {
     gM2: v(1.25, 'EN 1997-1:2024, tableau 4.8, valeur recommandée, jeu M2'),
     gRN: v(1.4, SOURCE_97_3),
     gRT: v(1.1, SOURCE_97_3),
+    gC: v(1.5, 'EN 1992-1-1:2023, tableau 4.3, valeur recommandée'),
+    gS: v(1.15, 'EN 1992-1-1:2023, tableau 4.3, valeur recommandée'),
+    gV: v(1.4, 'EN 1992-1-1:2023, §4.3.3, valeur recommandée'),
   };
 }
 

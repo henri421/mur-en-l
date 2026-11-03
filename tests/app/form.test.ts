@@ -187,3 +187,47 @@ describe('enregistrement', () => {
     expect(s.voileArriere).toEqual(saisieParDefaut().voileArriere);
   });
 });
+
+describe('coefficients partiels et options de methode', () => {
+  it('par defaut : aucun coefficient modifie, source unique non', () => {
+    const c = lue(saisieParDefaut());
+    expect(c.modifs).toEqual({});
+    expect(c.donnees.sourceUnique).toBe(false);
+  });
+
+  it('un coefficient saisi a la virgule est lu ; egal au recommande, il est ignore', () => {
+    const c = lue({ ...saisieParDefaut(), coefficients1: { 'R2.gRv': '1,5', 'A1.gG_dst': '1,35', 'M2.gPhi': '' } });
+    expect(c.modifs).toEqual({ 'R2.gRv': 1.5 });
+  });
+
+  it('la table suit la generation : celle de l autre generation est ignoree', () => {
+    const c = lue({ ...saisieParDefaut(), generation: '2e', coefficients1: { 'R2.gRv': '1,5' }, coefficients2: { 'kF.CC2': '1,1' } });
+    expect(c.modifs).toEqual({ 'kF.CC2': 1.1 });
+  });
+
+  it('refuse un coefficient illisible ou nul en nommant sa cle', () => {
+    expect(refus({ ...saisieParDefaut(), coefficients1: { 'R2.gRv': 'abc' } })).toMatch(/R2\.gRv/);
+    expect(refus({ ...saisieParDefaut(), coefficients1: { 'R2.gRv': '0' } })).toMatch(/R2\.gRv/);
+  });
+
+  it('verifier applique les coefficients : gamma_Rv = 1,0 multiplie R_d de portance par 1,4', () => {
+    const base = verifier(lue({ ...saisieParDefaut(), approche1: 'DA2' })).combinaisons[0].portance.R_d;
+    const mod = verifier(lue({ ...saisieParDefaut(), approche1: 'DA2', coefficients1: { 'R2.gRv': '1' } })).combinaisons[0].portance.R_d;
+    expect(mod / base).toBeCloseTo(1.4, 6);
+  });
+
+  it('DA2* et la source unique passent au noyau', () => {
+    const c = lue({ ...saisieParDefaut(), approche1: 'DA2*', sourceUnique: true });
+    expect(c.generation === '1re' && c.donnees.approche).toBe('DA2*');
+    expect(c.donnees.sourceUnique).toBe(true);
+    expect(verifier(c).combinaisons[0].nom).toBe('DA2*');
+  });
+
+  it('enregistrement relu a l identique ; cles inconnues ecartees', () => {
+    const s: Saisie = { ...saisieParDefaut(), approche1: 'DA2*', sourceUnique: true, coefficients1: { 'EQU.sol.gPhi': '1' }, coefficients2: { gV: '1,5' } };
+    expect(relire(serialiser(s))).toEqual(s);
+    const brut = JSON.parse(serialiser(s));
+    brut.coefficients1 = { 'EQU.sol.gPhi': '1', inconnu: '2', 'R2.gRv': 3 };
+    expect(relire(JSON.stringify(brut)).coefficients1).toEqual({ 'EQU.sol.gPhi': '1' });
+  });
+});
