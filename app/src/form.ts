@@ -9,6 +9,8 @@
 
 import { langueCourante, lireNombre } from 'aedificium-ui';
 import {
+  deriverProfil,
+  listerCoefficients,
   profil2eRecommande,
   profilRecommande,
   verifierMur,
@@ -18,7 +20,7 @@ import type { ResultatMur } from '../../src/index';
 import { textes } from './textes';
 
 export type Generation = '1re' | '2e';
-export type Approche1 = 'DA1' | 'DA2' | 'DA3';
+export type Approche1 = 'DA1' | 'DA2' | 'DA2*' | 'DA3';
 export type Approche2 = 'a+b' | 'c' | 'd';
 export type ClasseConsequences = 'CC1' | 'CC2' | 'CC3';
 export type ModePortance = 'annexeD' | 'saisie';
@@ -42,6 +44,14 @@ export interface Saisie {
   approche1: Approche1;
   approche2: Approche2;
   consequences: ClasseConsequences;
+  /** Principe de source unique pour les terres sur le talon. */
+  sourceUnique: boolean;
+  /**
+   * Coefficients partiels saisis, par cle du profil (`R2.gRv`), une table par
+   * generation. Une cle absente ou vide garde la valeur recommandee.
+   */
+  coefficients1: Record<string, string>;
+  coefficients2: Record<string, string>;
   dimensionsControlees: boolean;
   profondeurComptee: boolean;
   Dlower: string;
@@ -80,6 +90,9 @@ export function saisieParDefaut(): Saisie {
     approche1: 'DA1',
     approche2: 'a+b',
     consequences: 'CC2',
+    sourceUnique: false,
+    coefficients1: {},
+    coefficients2: {},
     dimensionsControlees: false,
     profondeurComptee: false,
     Dlower: '20',
@@ -118,9 +131,22 @@ type Donnees2e = Parameters<typeof verifierMur2e>[0];
 /** La saisie en barres, pour l'affichage : le noyau ne connait que les aires. */
 export type Barres = Record<'voileArriere' | 'voileAvant' | 'semelleHaut' | 'semelleBas', ArmatureSaisie>;
 
+/** Coefficients saisis, deja lus : seuls ceux qui different de la valeur recommandee. */
+export type Modifs = Record<string, number>;
+
 export type Calcul =
-  | { generation: '1re'; donnees: Donnees1re; barres: Barres }
-  | { generation: '2e'; donnees: Donnees2e; barres: Barres };
+  | { generation: '1re'; donnees: Donnees1re; barres: Barres; modifs: Modifs }
+  | { generation: '2e'; donnees: Donnees2e; barres: Barres; modifs: Modifs };
+
+/** Le profil de reference d'une generation : valeurs recommandees. */
+export function profilDeReference(generation: Generation) {
+  return generation === '1re' ? profilRecommande() : profil2eRecommande();
+}
+
+/** Les coefficients modifiables d'une generation, valeurs recommandees. */
+export function coefficientsDe(generation: Generation) {
+  return listerCoefficients(profilDeReference(generation));
+}
 
 export type Lecture = { ok: true; calcul: Calcul } | { ok: false; message: string };
 
@@ -208,7 +234,18 @@ export function lireSaisie(s: Saisie): Lecture {
 
     const barres: Barres = { voileArriere: s.voileArriere, voileAvant: s.voileAvant, semelleHaut: s.semelleHaut, semelleBas: s.semelleBas };
 
+    const table = generation === '1re' ? s.coefficients1 : s.coefficients2;
+    const modifs: Modifs = {};
+    for (const c of coefficientsDe(generation)) {
+      const brut = table[c.cle];
+      if (brut === undefined || brut.trim() === '') continue;
+      const v = nb(brut, c.cle);
+      if (!(v > 0)) throw new Refus(textes().messages.positifAttendu(c.cle, brut));
+      if (v !== c.valeur) modifs[c.cle] = v;
+    }
+
     const communes = {
+      sourceUnique: s.sourceUnique,
       geometrie,
       gammaBeton,
       remblai: { gamma, phi, q, partKa, charges },
@@ -223,6 +260,7 @@ export function lireSaisie(s: Saisie): Lecture {
           generation: '1re',
           donnees: { ...communes, approche: s.approche1 as Donnees1re['approche'] },
           barres,
+          modifs,
         },
       };
     }
@@ -232,6 +270,7 @@ export function lireSaisie(s: Saisie): Lecture {
       calcul: {
         generation: '2e',
         barres,
+        modifs,
         donnees: {
           ...communes,
           approche: s.approche2 as Donnees2e['approche'],
@@ -248,10 +287,11 @@ export function lireSaisie(s: Saisie): Lecture {
   }
 }
 
+/** Verifie avec les valeurs recommandees, remplacees par les coefficients saisis. */
 export function verifier(calcul: Calcul): ResultatMur {
   return calcul.generation === '1re'
-    ? verifierMur(calcul.donnees, profilRecommande())
-    : verifierMur2e(calcul.donnees, profil2eRecommande());
+    ? verifierMur(calcul.donnees, deriverProfil(profilRecommande(), calcul.modifs))
+    : verifierMur2e(calcul.donnees, deriverProfil(profil2eRecommande(), calcul.modifs));
 }
 
 const FORMAT = 'mur-en-l/1';
@@ -268,6 +308,17 @@ function choixOu<T extends string>(valeur: unknown, autorisees: readonly T[], de
   return typeof valeur === 'string' && (autorisees as readonly string[]).includes(valeur)
     ? (valeur as T)
     : defaut;
+}
+
+/** Une table de coefficients relue : cles connues de la generation, valeurs en chaines. */
+function coefficientsOu(valeur: unknown, generation: Generation): Record<string, string> {
+  if (typeof valeur !== 'object' || valeur === null) return {};
+  const connues = new Set(coefficientsDe(generation).map((c) => c.cle));
+  const out: Record<string, string> = {};
+  for (const [cle, v] of Object.entries(valeur as Record<string, unknown>)) {
+    if (connues.has(cle) && typeof v === 'string') out[cle] = v;
+  }
+  return out;
 }
 
 function armatureOu(valeur: unknown, defaut: ArmatureSaisie): ArmatureSaisie {
@@ -299,9 +350,12 @@ export function relire(contenu: string): Saisie {
 
   return {
     generation: choixOu(brut.generation, ['1re', '2e'] as const, d.generation),
-    approche1: choixOu(brut.approche1, ['DA1', 'DA2', 'DA3'] as const, d.approche1),
+    approche1: choixOu(brut.approche1, ['DA1', 'DA2', 'DA2*', 'DA3'] as const, d.approche1),
     approche2: choixOu(brut.approche2, ['a+b', 'c', 'd'] as const, d.approche2),
     consequences: choixOu(brut.consequences, ['CC1', 'CC2', 'CC3'] as const, d.consequences),
+    sourceUnique: brut.sourceUnique === true,
+    coefficients1: coefficientsOu(brut.coefficients1, '1re'),
+    coefficients2: coefficientsOu(brut.coefficients2, '2e'),
     dimensionsControlees: brut.dimensionsControlees === true,
     profondeurComptee: brut.profondeurComptee === true,
     Dlower: texteOu(brut.Dlower, d.Dlower),

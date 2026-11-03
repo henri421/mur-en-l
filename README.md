@@ -7,17 +7,22 @@ ressaisir**.
 Fait partie de la suite [Aedificium web](https://henri421.github.io/WebAedificium/).
 Page publiée : <https://henri421.github.io/mur-en-l/> (en anglais : `/en/`).
 
-> **Aide au calcul. L'outil constate, il ne prescrit pas.** Valeurs recommandées des normes, sans
-> annexe nationale belge. La 2ᵉ génération n'est applicable qu'une fois son annexe nationale
-> publiée. **Aucune valeur n'a encore été comparée à un calcul externe** : les cas de
-> `docs/validation/cas-reference.md` sont calculés à la main. La vérification finale incombe à
-> l'ingénieur du projet.
+> **Aide au calcul. L'outil constate, il ne prescrit pas.** Valeurs recommandées des normes par
+> défaut ; chaque coefficient partiel se modifie à l'écran, ce qui permet d'appliquer une annexe
+> nationale, et la note liste les valeurs changées. La 2ᵉ génération n'est applicable qu'une fois son
+> annexe nationale publiée. Les cas de `docs/validation/cas-reference.md` sont calculés à la main ;
+> une première comparaison avec Frilo WSM+ est dans `docs/validation/frilo-mur-a.md`. La
+> vérification finale incombe à l'ingénieur du projet.
 
 ## Ce que l'outil rend
 
 - **Stabilité externe** : renversement autour de l'arête du patin, glissement, portance (annexe D
   de l'EN 1997-1:2004 ou résistance q_Rd saisie), excentricité.
-- **1ʳᵉ génération** : DA1 (par défaut), DA2, DA3 et EQU pour le renversement.
+- **1ʳᵉ génération** : DA1 (par défaut), DA2, DA2* (coefficients sur les effets, comme la DIN 1054),
+  DA3 et EQU pour le renversement.
+- **Coefficients partiels modifiables** : jeux A, M et R de l'EN 1997-1, EQU, et γ_C, γ_S, α_cc,
+  C_Rd,c et k₁ de l'EN 1992-1-1 ; en 2ᵉ génération, k_F, k_M, k_R, γ des cas de vérification, γ_C,
+  γ_S et γ_V. Une valeur changée porte la source « valeur saisie », avec la valeur recommandée.
 - **2ᵉ génération** : approches (a) + (b), (c) et (d), classes de conséquences CC1 à CC3.
 - **Sections** : flexion, tranchant et armature minimale du voile, du patin et du talon, par les
   moteurs de `section-uls` et avec les efforts de chaque combinaison.
@@ -41,6 +46,11 @@ Page publiée : <https://henri421.github.io/mur-en-l/> (en anglais : `/en/`).
 - **2ᵉ génération** : largeur de portance réduite de 0,1 m sauf dimensions contrôlées ; facteur de
   profondeur optionnel.
 - Sections au nu du voile, sans réduction à la distance d (sens de la sécurité).
+- **DA2*** : excentricité, largeur efficace et inclinaison de la portance avec les actions
+  caractéristiques ; effort normal de calcul comparé à R_k / γ_R,v. Glissement comme en DA2.
+- **Principe de source unique** (EN 1997-1 §2.4.2(9), note), en option : les terres sur le talon
+  prennent le coefficient de la poussée dans les cas de la base (portance, sections). Le glissement
+  et le renversement restent inchangés.
 
 ## Hors périmètre
 

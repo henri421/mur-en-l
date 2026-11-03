@@ -3,9 +3,9 @@
  * tout vient du resultat du noyau (`src/mur.ts`) ou du calcul (`form.ts`).
  */
 
-import { type BlocResultat, nombreAffiche, notationHtml, tauxAffiche } from 'aedificium-ui';
+import { type BlocResultat, lireNombre, nombreAffiche, notationHtml, tauxAffiche } from 'aedificium-ui';
 import type { ResultatCombinaison, ResultatMur } from '../../src/mur';
-import type { Calcul } from './form';
+import { coefficientsDe, type Calcul, type Generation, type Saisie } from './form';
 import { phrase, textes } from './textes';
 
 /** Nombre affiche : les valeurs non finies passent par `tauxAffiche`. */
@@ -247,6 +247,97 @@ export function voletsHtml(r: ResultatMur): string {
   );
 }
 
+/** Symbole d'un coefficient du profil, d'apres sa cle (`R2.gRv` donne `γ_R,v`). */
+const SYMBOLES_1RE: Record<string, string> = {
+  gG_dst: 'γ_G,dst',
+  gG_stb: 'γ_G,stb',
+  gQ_dst: 'γ_Q',
+  gPhi: "γ_phi'",
+  gC: "γ_c'",
+  gRv: 'γ_R,v',
+  gRh: 'γ_R,h',
+};
+const SYMBOLES_BETON: Record<string, string> = { gC: 'γ_C', gS: 'γ_S', alphaCc: 'α_cc', cRdc: 'C_Rd,c γ_C', k1: 'k_1', gV: 'γ_V' };
+const SYMBOLES_2E: Record<string, string> = {
+  gG: 'γ_G',
+  gQ: 'γ_Q',
+  gG_fav: 'γ_G,fav',
+  gG_stb_VC2a: 'γ_G,stb VC2(a)',
+  gG_VC3: 'γ_G VC3',
+  gQ_VC3: 'γ_Q VC3',
+  gM2: 'γ_M2',
+  gRN: 'γ_R,N',
+  gRT: 'γ_R,T',
+};
+
+export function symboleCoefficient(cle: string): string {
+  const segments = cle.split('.');
+  const feuille = segments[segments.length - 1];
+  if (segments[0] === 'beton') return SYMBOLES_BETON[feuille] ?? feuille;
+  if (segments.length === 1) return SYMBOLES_2E[feuille] ?? SYMBOLES_BETON[feuille] ?? feuille;
+  if (['kF', 'kM', 'kR'].includes(segments[0])) return `k_${segments[0].slice(1)} ${feuille}`;
+  return SYMBOLES_1RE[feuille] ?? feuille;
+}
+
+/** Jeu auquel appartient un coefficient, dans la langue courante. */
+export function groupeCoefficient(cle: string): string {
+  const g = textes().vue.coefficients.groupes;
+  const segments = cle.split('.');
+  if (segments.length > 1) {
+    const deux = `${segments[0]}.${segments[1]}` as keyof typeof g;
+    return g[deux] ?? g[segments[0] as keyof typeof g] ?? segments[0];
+  }
+  const f = segments[0];
+  if (['gC', 'gS', 'gV'].includes(f)) return g.beton2;
+  if (f === 'gM2') return g.materiaux2;
+  if (f === 'gRN' || f === 'gRT') return g.resistances2;
+  return g.actions2;
+}
+
+/** Tous les symboles de coefficients, pour ranger les lignes de la note. */
+export function estSymboleCoefficient(symbole: string): boolean {
+  return (['1re', '2e'] as const).some((g) => coefficientsDe(g).some((c) => symboleCoefficient(c.cle) === symbole));
+}
+
+/** Nombre saisi tel quel, valeur recommandee a la virgule. */
+const affCoef = (v: number): string => nombreAffiche(v, v === Math.round(v * 100) / 100 ? 2 : 3);
+
+/**
+ * Tableau des coefficients modifiables de la generation courante. Chaque champ
+ * porte `data-coef` ; vide, il reprend la valeur recommandee, rappelee a cote.
+ */
+export function coefficientsHtml(s: Saisie, generation: Generation = s.generation): string {
+  const t = textes().vue.coefficients;
+  const table = generation === '1re' ? s.coefficients1 : s.coefficients2;
+  const liste = coefficientsDe(generation);
+  const modifies = liste.filter((c) => {
+    const v = lireNombre(table[c.cle] ?? '');
+    return v !== null && v !== c.valeur;
+  }).length;
+  let groupePrecedent = '';
+  const lignes = liste
+    .map((c) => {
+      const brut = table[c.cle] ?? '';
+      const titre = c.source.replace(/"/g, '&quot;');
+      const groupe = groupeCoefficient(c.cle);
+      const entete = groupe === groupePrecedent ? '' : `<tr class="groupe-coef"><th colspan="3">${sym(groupe)}</th></tr>`;
+      groupePrecedent = groupe;
+      return (
+        `${entete}<tr><td>${sym(symboleCoefficient(c.cle))}</td>` +
+        `<td><input type="text" inputmode="decimal" data-coef="${c.cle}" value="${brut.replace(/"/g, '&quot;')}" placeholder="${affCoef(c.valeur)}" aria-label="${c.cle}" /></td>` +
+        `<td class="n" title="${titre}">${affCoef(c.valeur)}</td></tr>`
+      );
+    })
+    .join('');
+  return (
+    `<details class="deriv coefficients"><summary>${t.titre} : <span data-role="resume-coefficients">${t.resume(modifies)}</span></summary>` +
+    `<p>${t.aide}</p>` +
+    `<table class="coefficients"><thead><tr><th>${t.symbole}</th>` +
+    `<th>${t.valeur}</th><th class="n">${t.recommandee}</th></tr></thead><tbody>${lignes}</tbody></table>` +
+    `<button type="button" data-action="coefficients-recommandes">${t.revenir}</button></details>`
+  );
+}
+
 export function blocEntrees(calcul: Calcul): BlocResultat {
   const t = textes().vue;
   const e = t.entrees;
@@ -266,6 +357,13 @@ export function blocEntrees(calcul: Calcul): BlocResultat {
     ligne(e.symboleDimensions, e.dimensions, x.dimensionsControlees ? e.oui : e.non);
     ligne(e.symboleProfondeur, e.profondeur, x.profondeurComptee ? e.oui : e.non);
     ligne('D_lower', e.dLower, `${aff(x.Dlower, 0)} mm`);
+  }
+  ligne(e.symboleSourceUnique, e.sourceUnique, d.sourceUnique ? e.oui : e.non);
+  const modifs = Object.entries(calcul.modifs);
+  if (modifs.length === 0) ligne(e.symboleCoefficients, e.coefficients, e.recommandees);
+  const reference = new Map(coefficientsDe(calcul.generation).map((c) => [c.cle, c.valeur]));
+  for (const [cle, v] of modifs) {
+    ligne(symboleCoefficient(cle), e.coefficientModifie(groupeCoefficient(cle)), e.valeurModifiee(affCoef(v), affCoef(reference.get(cle) ?? NaN)));
   }
 
   const geo = d.geometrie;

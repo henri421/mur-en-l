@@ -33,6 +33,18 @@ export interface JeuResistance {
   gRh: ValeurSourcee;
 }
 
+/** Coefficients du beton arme, EN 1992-1-1:2004. */
+export interface JeuBeton {
+  /** gamma_C et gamma_S, tableau 2.1N. */
+  gC: ValeurSourcee;
+  gS: ValeurSourcee;
+  /** alpha_cc, §3.1.6(1)P. */
+  alphaCc: ValeurSourcee;
+  /** Numerateur de C_Rd,c = c_Rd,c / gamma_C et k_1, §6.2.2(1). */
+  cRdc: ValeurSourcee;
+  k1: ValeurSourcee;
+}
+
 export interface ProfilMur {
   nom: string;
   date: string;
@@ -45,9 +57,16 @@ export interface ProfilMur {
   R1: JeuResistance;
   R2: JeuResistance;
   R3: JeuResistance;
+  beton: JeuBeton;
 }
 
-export type Approche = 'DA1' | 'DA2' | 'DA3';
+/**
+ * DA2* : DA2 dont les coefficients portent sur les effets. Excentricite, largeur
+ * efficace et inclinaison de la portance viennent des actions caracteristiques,
+ * seul l'effort normal est majore : coefficients sur les effets, EN 1997-1
+ * §2.4.7.3.2, eq. 2.6b, comme le fait la DIN 1054:2010.
+ */
+export type Approche = 'DA1' | 'DA2' | 'DA2*' | 'DA3';
 
 /** Une combinaison a verifier, coefficients resolus. */
 export interface Combinaison {
@@ -58,6 +77,8 @@ export interface Combinaison {
   structure: JeuActions;
   sol: JeuSol;
   resistance: JeuResistance;
+  /** DA2* : portance avec excentricite et inclinaison caracteristiques. */
+  effetsCaracteristiques?: boolean;
 }
 
 function actions(source: string, gG_dst: number, gG_stb: number, gQ_dst: number): JeuActions {
@@ -95,6 +116,13 @@ export function profilRecommande(): ProfilMur {
     R1: resistance(`${tA5}, jeu R1`, 1.0, 1.0),
     R2: resistance(`${tA5}, jeu R2`, 1.4, 1.1),
     R3: resistance(`${tA5}, jeu R3`, 1.0, 1.0),
+    beton: {
+      gC: { valeur: 1.5, source: 'EN 1992-1-1:2004, tableau 2.1N, valeur recommandée' },
+      gS: { valeur: 1.15, source: 'EN 1992-1-1:2004, tableau 2.1N, valeur recommandée' },
+      alphaCc: { valeur: 1.0, source: 'EN 1992-1-1:2004, §3.1.6(1)P, valeur recommandée' },
+      cRdc: { valeur: 0.18, source: 'EN 1992-1-1:2004, §6.2.2(1), valeur recommandée de C_Rd,c × γ_C' },
+      k1: { valeur: 0.15, source: 'EN 1992-1-1:2004, §6.2.2(1), valeur recommandée' },
+    },
   };
 }
 
@@ -103,6 +131,7 @@ export function verifierProfil(p: ProfilMur): void {
   const jeux: [string, object][] = [
     ['EQU actions', p.EQU.actions], ['EQU sol', p.EQU.sol],
     ['A1', p.A1], ['A2', p.A2], ['M1', p.M1], ['M2', p.M2], ['R1', p.R1], ['R2', p.R2], ['R3', p.R3],
+    ['béton', p.beton],
   ];
   for (const [nom, j] of jeux) {
     for (const [cle, v] of Object.entries(j) as [string, ValeurSourcee][]) {
@@ -126,5 +155,8 @@ export function combinaisons(approche: Approche, p: ProfilMur): Combinaison[] {
     ];
   }
   if (approche === 'DA2') return [{ nom: 'DA2', geotechnique: p.A1, structure: p.A1, sol: p.M1, resistance: p.R2 }];
+  if (approche === 'DA2*') {
+    return [{ nom: 'DA2*', geotechnique: p.A1, structure: p.A1, sol: p.M1, resistance: p.R2, effetsCaracteristiques: true }];
+  }
   return [{ nom: 'DA3', geotechnique: p.A2, structure: p.A1, sol: p.M2, resistance: p.R3 }];
 }

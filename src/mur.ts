@@ -58,8 +58,7 @@ const LARGEUR_MM = 1000;
 const E_S = 200000;
 const N_PAR_KN = 1000;
 
-/** Coefficients de l'EN 1992-1-1:2023 : gamma_V (4.3.3), k_tc (5.1.6, mise en charge avant 90 jours), f_ck,ref. */
-const GAMMA_V_2023 = 1.4;
+/** Coefficients de l'EN 1992-1-1:2023 : k_tc (5.1.6, mise en charge avant 90 jours), f_ck,ref. */
 const K_TC_2023 = 0.85;
 const FCK_REF_2023 = 40;
 /** Ecart de largeur d'une semelle coulee en place, EN 1997-3:2025 5.6.3, NOTE 1 de (5.10) (m). */
@@ -137,6 +136,12 @@ export interface DonneesMur {
   fondation: Fondation;
   armatures: Armatures;
   approche: Approche;
+  /**
+   * Principe de source unique, EN 1997-1 §2.4.2(9), note : les terres sur le talon
+   * prennent le coefficient de la poussee, dont elles partagent la source. Applique
+   * aux cas de la base (portance, sections), pas au glissement ni au renversement.
+   */
+  sourceUnique?: boolean;
 }
 
 export interface DonneesMur2e extends Omit<DonneesMur, 'approche'> {
@@ -165,6 +170,8 @@ export interface CasBase {
   /** Largeur efficace B' (m), nulle si la resultante sort de la base. */
   Bp: number;
   sol: ResultatPortance | null;
+  /** DA2* : actions caracteristiques dont viennent e, B' et l'inclinaison. */
+  caracteristique?: { V: number; H: number; M: number; e: number };
   /** Resistance de calcul (kN/m). */
   R_d: number;
   taux: number;
@@ -419,8 +426,12 @@ interface ContexteSection {
   acier: ReturnType<typeof createSteel>;
   norme: NormProfile;
   a: number;
-  /** Renseigne en 2e generation seulement : D_lower (mm). */
+  /** 1re generation : C_Rd,c et k_1 de l'EN 1992-1-1:2004 §6.2.2(1). */
+  CRdc: number;
+  k1: number;
+  /** Renseignes en 2e generation seulement : D_lower (mm) et gamma_V. */
   Dlower?: number;
+  gV?: number;
 }
 
 /**
@@ -466,12 +477,12 @@ function fctm2023(fck: number): number {
 }
 
 /** V_Rd,c de l'EN 1992-1-1:2023, (8.20) et (8.27), z = 0,9 d, effort normal neglige : c'est sur (kN/m). */
-function vRdc2023(fck: number, fyk: number, gammaS: number, As: number, d: number, Dlower: number): number {
+function vRdc2023(fck: number, fyk: number, gammaS: number, gV: number, As: number, d: number, Dlower: number): number {
   const ddg = fck <= 60 ? Math.min(16 + Dlower, 40) : Math.min(16 + Dlower * (60 / fck) ** 2, 40);
   const fyd = fyk / gammaS;
   const rho = As / (LARGEUR_MM * d);
-  const tauMin = (11 / GAMMA_V_2023) * Math.sqrt(((fck / fyd) * ddg) / d);
-  const tau = Math.max((0.66 / GAMMA_V_2023) * ((100 * rho * fck * ddg) / d) ** (1 / 3), tauMin);
+  const tauMin = (11 / gV) * Math.sqrt(((fck / fyd) * ddg) / d);
+  const tau = Math.max((0.66 / gV) * ((100 * rho * fck * ddg) / d) ** (1 / 3), tauMin);
   return (tau * LARGEUR_MM * 0.9 * d) / N_PAR_KN;
 }
 
@@ -513,7 +524,10 @@ function verifierSection(
     const r = verifyUniaxial(s, { N, M: 0 }, c.norme);
     if (!r.converged) throw new Error(`${nom} : équilibre de la section introuvable (section-uls).`);
     M_Rd = Math.abs(r.M_Rd);
-    V_Rd_c = c.Dlower !== undefined ? vRdc2023(fck, fyk, c.norme.gammaS, As, hauteur - c.a, c.Dlower) : shearWithoutLinks(s, N, c.norme).VRdc;
+    V_Rd_c =
+      c.Dlower !== undefined
+        ? vRdc2023(fck, fyk, c.norme.gammaS, c.gV ?? 1.4, As, hauteur - c.a, c.Dlower)
+        : shearWithoutLinks(s, N, c.norme, { CRdc: c.CRdc, k1: c.k1 }).VRdc;
   }
   const taux = (Ed: number, Rd: number): number => (Ed <= 0 ? 0 : Rd > 0 ? Ed / Rd : Infinity);
   return { section: nom, casFlexion: cas, casTranchant: cas, faceTendue, M_Ed: M, M_Rd, tauxFlexion: taux(M, M_Rd), V_Ed: V, V_Rd_c, tauxTranchant: taux(V, V_Rd_c), As_min, As };
@@ -568,6 +582,9 @@ function calculerCombinaison(d: DonneesMur, c: Combinaison, ctx: ContexteSection
   const pb = pousseesBandes(d, Ka, phi_d);
   const H_d = gG * poussee.P_G + gQ * poussee.P_Q + pb.reduce((s, x) => s + facteur(x.nature) * x.P, 0);
   const M_H = (gG * poussee.P_G * b.Ht) / 3 + (gQ * poussee.P_Q * b.Ht) / 2 + pb.reduce((s, x) => s + facteur(x.nature) * x.P * x.z, 0);
+  // DA2* : memes poussees, caracteristiques.
+  const H_k = poussee.P_G + poussee.P_Q + pb.reduce((s, x) => s + x.P, 0);
+  const M_Hk = (poussee.P_G * b.Ht) / 3 + (poussee.P_Q * b.Ht) / 2 + pb.reduce((s, x) => s + x.P * x.z, 0);
 
   const pousseesCalcul: ResultatCombinaison['pousseesCalcul'] = [
     { origine: 'poussée des terres', nature: 'G', F: gG * poussee.P_G, z: b.Ht / 3 },
@@ -601,7 +618,8 @@ function calculerCombinaison(d: DonneesMur, c: Combinaison, ctx: ContexteSection
 
   for (const verticales of ['sup', 'inf'] as const) {
     const fc = verticales === 'sup' ? c.structure.gG_dst.valeur : c.structure.gG_stb.valeur;
-    const fs = verticales === 'sup' ? c.geotechnique.gG_dst.valeur : c.geotechnique.gG_stb.valeur;
+    // Source unique : les terres du talon suivent la poussee, toujours defavorable.
+    const fs = verticales === 'sup' || d.sourceUnique ? c.geotechnique.gG_dst.valeur : c.geotechnique.gG_stb.valeur;
     for (const surchargeSurTalon of [true, false]) {
       const fq = surchargeSurTalon ? gQ : 0;
       const surTalon = bandesSurTalon(d).map((x) => ({ ...x, f: x.nature === 'G' ? fs : fq }));
@@ -614,26 +632,43 @@ function calculerCombinaison(d: DonneesMur, c: Combinaison, ctx: ContexteSection
         surTalon.reduce((s, x) => s + x.f * x.F * (milieu - x.x), 0) +
         M_H;
       const e = M / V;
-      const Bp = Math.max(0, regles.largeurPortance(b.B) - 2 * Math.abs(e));
       const nom = `${c.nom}, verticales ${verticales}${surchargeSurTalon ? ', surcharge sur le talon' : ''}`;
+
+      // DA2* : la resistance se calcule avec les actions caracteristiques, la meme
+      // repartition des charges sur le talon que le cas, puis se compare a V de calcul.
+      let caracteristique: CasBase['caracteristique'];
+      if (c.effetsCaracteristiques) {
+        const qT = surchargeSurTalon ? 1 : 0;
+        const surTalonK = bandesSurTalon(d).map((x) => ({ ...x, f: x.nature === 'G' ? 1 : qT }));
+        const poidsK = [b.voileRect, b.voileTri, b.semelle, b.terres];
+        const Vk = poidsK.reduce((s, x) => s + x.F, 0) + qT * b.surcharge.F + surTalonK.reduce((s, x) => s + x.f * x.F, 0);
+        const Mk =
+          poidsK.reduce((s, x) => s + x.F * (milieu - x.x), 0) +
+          qT * b.surcharge.F * (milieu - b.surcharge.x) +
+          surTalonK.reduce((s, x) => s + x.f * x.F * (milieu - x.x), 0) +
+          M_Hk;
+        caracteristique = { V: Vk, H: H_k, M: Mk, e: Mk / Vk };
+      }
+      const eR = caracteristique ? caracteristique.e : e;
+      const Bp = Math.max(0, regles.largeurPortance(b.B) - 2 * Math.abs(eR));
 
       let sol: ResultatPortance | null = null;
       let R_d = 0;
       const p = d.fondation.portance;
       if (Bp > 0) {
         if (p.mode === 'annexeD') {
-          sol = regles.portance(p, c, Bp, V, H_d);
+          sol = caracteristique ? regles.portance(p, c, Bp, caracteristique.V, caracteristique.H) : regles.portance(p, c, Bp, V, H_d);
           R_d = (Bp * sol.q_u) / c.resistance.gRv.valeur;
         } else {
           R_d = Bp * p.qRd;
         }
       }
       const taux = R_d > 0 ? V / R_d : Infinity;
-      cas.push({ nom, verticales, surchargeSurTalon, V, H: H_d, M, e, Bp, sol, R_d, taux });
+      cas.push({ nom, verticales, surchargeSurTalon, V, H: H_d, M, e, Bp, sol, ...(caracteristique ? { caracteristique } : {}), R_d, taux });
 
-      // Sections : contrainte lineaire de ce cas. Si la resultante sort de la
-      // base, l'etat n'existe pas : la portance est deja refusee.
-      if (Bp <= 0) continue;
+      // Sections : contrainte lineaire de ce cas. Si la resultante de calcul sort
+      // de la base, l'etat n'existe pas : la portance est deja refusee.
+      if (regles.largeurPortance(b.B) - 2 * Math.abs(e) <= 0) continue;
       const pression = contrainteSol(V, e, b.B);
       const coupes = Math.abs(e) > b.B / 6 ? [e > 0 ? 3 * (milieu - e) : b.B - 3 * (milieu + e)] : [];
 
@@ -688,12 +723,21 @@ export function verifierMur(d: DonneesMur, profil: ProfilMur): ResultatMur {
   verifierDonnees(d);
   const b = blocs(d);
 
-  const norme = ec2Recommended();
+  const pb = profil.beton;
+  const norme: NormProfile = {
+    name: profil.nom,
+    gammaC: pb.gC.valeur,
+    gammaS: pb.gS.valeur,
+    alphaCc: pb.alphaCc.valeur,
+    nBands: ec2Recommended().nBands,
+  };
   const ctx: ContexteSection = {
     beton: createConcrete(d.armatures.fck, norme),
     acier: createSteel(d.armatures.fyk, E_S, norme),
     norme,
     a: d.armatures.a,
+    CRdc: pb.cRdc.valeur / pb.gC.valeur,
+    k1: pb.k1.valeur,
   };
 
   // EQU : jeu propre, phi' divise par son gamma de A.2. Pas de portance ici.
@@ -746,12 +790,21 @@ export function verifierMur2e(d: DonneesMur2e, profil: Profil2e): ResultatMur {
   const { fck, fyk } = d.armatures;
   const norme: NormProfile = {
     name: 'EN 1992-1-1:2023',
-    gammaC: 1.5,
-    gammaS: 1.15,
+    gammaC: profil.gC.valeur,
+    gammaS: profil.gS.valeur,
     alphaCc: Math.min((FCK_REF_2023 / fck) ** (1 / 3), 1) * K_TC_2023,
     nBands: ec2Recommended().nBands,
   };
-  const ctx: ContexteSection = { beton: createConcrete(fck, norme), acier: createSteel(fyk, E_S, norme), norme, a: d.armatures.a, Dlower: d.Dlower };
+  const ctx: ContexteSection = {
+    beton: createConcrete(fck, norme),
+    acier: createSteel(fyk, E_S, norme),
+    norme,
+    a: d.armatures.a,
+    CRdc: 0,
+    k1: 0,
+    Dlower: d.Dlower,
+    gV: profil.gV.valeur,
+  };
 
   // Basculement : phi' representatif, VC2(a) et VC2(b), le moins favorable.
   const phiRep = phiCalcul(d.remblai.phi, 1);

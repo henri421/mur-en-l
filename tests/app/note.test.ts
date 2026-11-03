@@ -101,6 +101,15 @@ describe('sections', () => {
     expect(texteVisible(h2)).toContain('CC2');
   });
 
+  it('hypotheses : coefficients modifies et source unique, dans les deux generations', () => {
+    const s1 = preparer({ ...saisieParDefaut(), sourceUnique: true, coefficients1: { 'R2.gRv': '1,5' } }).note.sections;
+    expect(symboles(s1.hypotheses)).toContain('γ_R,v');
+    expect(symboles(s1.hypotheses)).toContain('source unique');
+    const s2 = preparer({ ...saisieParDefaut(), generation: '2e', coefficients2: { 'kF.CC2': '1,1' } }).note.sections;
+    expect(symboles(s2.hypotheses)).toContain('k_F CC2');
+    expect(symboles(preparer(saisieParDefaut()).note.sections.hypotheses)).toContain('coefficients');
+  });
+
   it('calculs : renversement, puis un bloc par combinaison, puis les sections', () => {
     const { r, note } = preparer(saisieParDefaut());
     const t = titres(note.sections.calculs);

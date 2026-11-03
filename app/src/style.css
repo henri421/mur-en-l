@@ -628,3 +628,10 @@ svg .contrainte-fleche { stroke: var(--compression); stroke-width: 1; }
 svg .meyer { fill: none; stroke: var(--traction); stroke-dasharray: 5 3; stroke-width: 1.5; }
 svg .legende { fill: var(--texte-faible); font-size: 11px; font-family: var(--sans); }
 
+
+/* Coefficients partiels : tableau compact, un en-tete par jeu. */
+table.coefficients { width: 100%; border-collapse: collapse; }
+table.coefficients td, table.coefficients th { padding: 2px 4px; text-align: left; }
+table.coefficients td.n, table.coefficients th.n { text-align: right; }
+table.coefficients tr.groupe-coef th { padding-top: 8px; font-weight: 600; border-bottom: 1px solid var(--bordure-douce); }
+table.coefficients input { width: 5.5em; }
