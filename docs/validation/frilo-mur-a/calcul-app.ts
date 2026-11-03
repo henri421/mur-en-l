@@ -33,7 +33,7 @@ for (const [nomP, prof] of [['recommande', profilRecommande()], ['EQU phi_k', di
     console.log(`EQU Ka=${f(rv.Ka,4)} phi_d=${f(rv.phi_d)} Mdst=${f(rv.pivot.M_dst_d)} Mstb=${f(rv.pivot.M_stb_d)} taux=${f(rv.taux,3)}`);
     console.log(`excentricite e=${f(r.excentricite.e,3)} lim=${f(r.excentricite.limite,3)} taux=${f(r.excentricite.taux,3)}`);
     for (const c of r.combinaisons) {
-      console.log(`-- ${c.nom} phi_d=${f(c.phi_d)} K=${f(c.poussee.Ka,4)} P_G=${f(c.poussee.P_G)} mu_d=${f(c.mu_d,4)}`);
+      console.log(`> ${c.nom} phi_d=${f(c.phi_d)} K=${f(c.poussee.Ka,4)} P_G=${f(c.poussee.P_G)} mu_d=${f(c.mu_d,4)}`);
       console.log('   poussees', c.pousseesCalcul.map((p) => `${p.origine}:${f(p.F)}@${f(p.z)}`).join(' | '));
       const g = c.glissement;
       console.log(`   glissement H_d=${f(g.H_d)} N_d=${f(g.N_d)} R_d=${f(g.R_d)} taux=${f(g.taux,3)}`);
