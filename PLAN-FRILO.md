@@ -53,8 +53,9 @@ les poussées. À faire avant tout autre lot : chaque lot suivant doit faire bai
 
 ### L1. Options de méthode (M)
 
-État au 2026-11-03 : points 1, 2 et 3 faits (DA2*, source unique, coefficients modifiables à
-l'écran au lieu de profils d'annexe codés en dur) ; restent 4 et 5. L0 : `tests/bancs.test.ts`
+État au 2026-11-03 : lot fait (DA2*, source unique, coefficients modifiables à l'écran au lieu de
+profils d'annexe codés en dur, δ sur le parement, bloc du talon, frottement de base). δ sur l'about
+du talon pour l'écran virtuel reste à faire (2 % sur la poussée du mur A). L0 : `tests/bancs.test.ts`
 compare au rapport Frilo les grandeurs dont les hypothèses coïncident.
 
 Ce lot referme l'essentiel des écarts du mur A.

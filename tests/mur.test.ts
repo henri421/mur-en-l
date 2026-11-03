@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { kaRankine, phiCalcul, portanceDrainee } from '../src/sol';
+import { kaCoulomb, kaRankine, phiCalcul, portanceDrainee } from '../src/sol';
 import { combinaisons, profilRecommande, verifierProfil } from '../src/profil';
 import { contrainteSol, verifierMur, type DonneesMur } from '../src/mur';
 import { deriverProfil } from '../src/coefficients';
@@ -355,5 +355,53 @@ describe('profil modifie par l utilisateur', () => {
     const p = deriverProfil(profil, { 'beton.cRdc': 0.15, 'beton.k1': 0.12 });
     expect(verifierMur(mur(), p).combinaisons[0].voile.V_Rd_c).toBeCloseTo(127.21, 1);
     expect(verifierMur(mur(), profil).combinaisons[0].voile.V_Rd_c).toBeCloseTo(146.28, 1);
+  });
+});
+
+describe('delta sur le parement, bloc du talon, frottement de base (DA1-1)', () => {
+  // Calcul a part : K_ah(30, 20) = 0,279384 ; voile G 1,35 x 0,279384 x 18 x 9 / 2 = 30,551 kN a 1,0 m,
+  // Q 1,5 x 0,279384 x 10 x 3 = 12,572 kN a 1,5 m ; E_av = 43,123 x tan 20 = 15,695 kN.
+  const avec = (x: Partial<DonneesMur>, delta = 0) => {
+    const m = mur('DA1');
+    return verifierMur({ ...m, ...x, remblai: { ...m.remblai, deltaParement: delta } }, profil).combinaisons[0];
+  };
+
+  it('Coulomb, phi = 30, delta = 20 : K_a = 0,297314, K_ah = 0,279384', () => {
+    const k = kaCoulomb(phiCalcul(30, 1), phiCalcul(20, 1));
+    expect(k.Ka).toBeCloseTo(0.297314, 5);
+    expect(k.Kah).toBeCloseTo(0.279384, 5);
+  });
+
+  it('delta = 2/3 phi : V_Ed = 43,123 kN, M_Ed = 47,055 kN.m, N compte E_av', () => {
+    const c = avec({}, 2 / 3);
+    expect(c.voile.V_Ed).toBeCloseTo(43.123, 2);
+    expect(c.voile.M_Ed).toBeCloseTo(47.055, 2);
+    expect(c.talon.M_Ed).toBeCloseTo(48.261, 2);
+  });
+
+  it('frottement de base seul : patin 16,483 kN.m au lieu de 20,631, talon 42,933 au lieu de 48,261', () => {
+    const c = avec({ frottementBase: true });
+    expect(c.patin.M_Ed).toBeCloseTo(16.483, 2);
+    expect(c.talon.M_Ed).toBeCloseTo(42.933, 2);
+    expect(c.talon.V_Ed).toBeCloseTo(49.224, 2);
+  });
+
+  it('bloc du talon, delta = 2/3 phi et frottement : talon M_Ed = 31,77 kN.m, V_Ed = 33,528 kN', () => {
+    const c = avec({ talonPrisme: true, frottementBase: true }, 2 / 3);
+    expect(c.talon.M_Ed).toBeCloseTo(31.77, 2);
+    expect(c.talon.V_Ed).toBeCloseTo(33.528, 2);
+  });
+
+  it('refuse un rapport delta/phi superieur a 1', () => {
+    expect(() => avec({}, 1.2)).toThrow(/parement/);
+  });
+
+  it('sans option, rien ne change : stabilite externe identique', () => {
+    const a = verifierMur(mur('DA1'), profil);
+    const m = mur('DA1');
+    const b = verifierMur({ ...m, talonPrisme: true, frottementBase: true, remblai: { ...m.remblai, deltaParement: 2 / 3 } }, profil);
+    expect(b.renversement.taux).toBeCloseTo(a.renversement.taux, 10);
+    expect(b.combinaisons[0].glissement.taux).toBeCloseTo(a.combinaisons[0].glissement.taux, 10);
+    expect(b.combinaisons[0].portance.taux).toBeCloseTo(a.combinaisons[0].portance.taux, 10);
   });
 });

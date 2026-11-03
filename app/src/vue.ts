@@ -359,6 +359,8 @@ export function blocEntrees(calcul: Calcul): BlocResultat {
     ligne('D_lower', e.dLower, `${aff(x.Dlower, 0)} mm`);
   }
   ligne(e.symboleSourceUnique, e.sourceUnique, d.sourceUnique ? e.oui : e.non);
+  ligne(e.symboleTalonPrisme, e.talonPrisme, d.talonPrisme ? e.oui : e.non);
+  ligne(e.symboleFrottementBase, e.frottementBase, d.frottementBase ? e.oui : e.non);
   const modifs = Object.entries(calcul.modifs);
   if (modifs.length === 0) ligne(e.symboleCoefficients, e.coefficients, e.recommandees);
   const reference = new Map(coefficientsDe(calcul.generation).map((c) => [c.cle, c.valeur]));
@@ -381,6 +383,7 @@ export function blocEntrees(calcul: Calcul): BlocResultat {
   ligne("phi'", e.remblaiPhi, `${aff(remblai.phi, 1)} °`);
   ligne('q', e.surcharge, `${aff(remblai.q, 1)} kPa`);
   ligne('K_a', e.partKa, `${aff((remblai.partKa ?? 1) * 100, 0)} %`);
+  ligne("delta_p/phi'", e.deltaParement, aff(remblai.deltaParement ?? 0, 3));
   (remblai.charges ?? []).forEach((ch, i) => {
     ligne(e.symboleBande(i + 1), e.bande(i + 1), e.valeurBande(ch.nature, aff(ch.q, 1), aff(ch.distance, 2), aff(ch.largeur, 2)));
   });

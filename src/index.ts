@@ -27,7 +27,7 @@ export {
   type Profil2e,
 } from './profil2e';
 export { coefficientsModifies, deriverProfil, listerCoefficients, type Coefficient } from './coefficients';
-export { coefficientPoussee, kaRankine, phiCalcul, portanceDrainee, portanceDrainee2e, pousseeActive, type DonneesPortance, type Poussee, type ResultatPortance } from './sol';
+export { coefficientParement, coefficientPoussee, kaCoulomb, kaRankine, phiCalcul, portanceDrainee, portanceDrainee2e, pousseeActive, type DonneesPortance, type Poussee, type ResultatPortance } from './sol';
 export {
   contrainteSol,
   projectionBande,

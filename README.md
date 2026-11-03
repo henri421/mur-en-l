@@ -51,6 +51,14 @@ Page publiée : <https://henri421.github.io/mur-en-l/> (en anglais : `/en/`).
 - **Principe de source unique** (EN 1997-1 §2.4.2(9), note), en option : les terres sur le talon
   prennent le coefficient de la poussée dans les cas de la base (portance, sections). Le glissement
   et le renversement restent inchangés.
+- **δ sur le parement du voile**, en option (δ/φ′, 0 par défaut) : K_ah de Coulomb pour le voile
+  seul, composante verticale E_av dans l'effort normal et moment réduit de E_av e/2. L'écran virtuel
+  garde δ = 0.
+- **Bloc du talon**, en option : le talon est isolé avec les terres qu'il porte ; la poussée sur
+  l'écran virtuel et la réaction du voile entrent dans son moment, E_av dans son effort tranchant.
+  Par défaut, console sous poids et réaction du sol, plus sûre.
+- **Frottement de base**, en option : réparti comme la pression, avec un bras de demi-épaisseur ;
+  il réduit les moments du patin et du talon.
 
 ## Hors périmètre
 

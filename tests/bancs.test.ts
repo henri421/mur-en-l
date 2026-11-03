@@ -50,6 +50,13 @@ describe('Banc Frilo, mur A', () => {
     expect(r.q_u * 1.9556).toBeCloseTo(416.8, 0);
   });
 
+  it('voile, terres seules, delta = 2/3 phi : M_Ed = 1,35 x 161,54 et V_Ed = 1,35 x 83,39 (Frilo, K_agh = 0,251)', () => {
+    const m = murA();
+    const c = verifierMur({ ...m, remblai: { ...m.remblai, charges: [], deltaParement: 2 / 3 } }, profilEqu).combinaisons[0];
+    expect(c.voile.M_Ed).toBeCloseTo(1.35 * 161.54, 0);
+    expect(c.voile.V_Ed).toBeCloseTo(1.35 * 83.39, 0);
+  });
+
   it('poussee des terres : 111,47 kN/m dans Frilo, ecart declare de 2 % (delta nul sur l about du talon)', () => {
     const P_G = verifierMur(murA(), profilEqu).combinaisons[0].poussee.P_G;
     expect(P_G / 111.47).toBeGreaterThan(1);

@@ -49,6 +49,30 @@ export function coefficientPoussee(phiRadians: number, partKa = 1): number {
   return partKa * kaRankine(phiRadians) + (1 - partKa) * (1 - Math.sin(phiRadians));
 }
 
+/**
+ * Coefficient de poussee de Coulomb, ecran vertical, terre-plein horizontal,
+ * frottement delta sur l'ecran (EN 1997-1 annexe C, C.2, cas alpha = beta = 0) :
+ * K_a = cos^2 phi / [cos delta (1 + sqrt(sin(phi + delta) sin phi / cos delta))^2].
+ * Rend K_a et sa composante horizontale K_ah = K_a cos delta. Angles en radians.
+ */
+export function kaCoulomb(phiRadians: number, deltaRadians: number): { Ka: number; Kah: number } {
+  const c = Math.cos(deltaRadians);
+  const r = Math.sqrt((Math.sin(phiRadians + deltaRadians) * Math.sin(phiRadians)) / c);
+  const Ka = Math.cos(phiRadians) ** 2 / (c * (1 + r) ** 2);
+  return { Ka, Kah: Ka * c };
+}
+
+/**
+ * Coefficient horizontal sur le parement reel du voile, avec delta = rapport x phi' :
+ * K_h = p K_ah + (1 - p) K_0. Le repos est pris sans frottement. Rapport nul :
+ * on retrouve `coefficientPoussee`.
+ */
+export function coefficientParement(phiRadians: number, rapportDelta: number, partKa = 1): number {
+  if (rapportDelta === 0) return coefficientPoussee(phiRadians, partKa);
+  const { Kah } = kaCoulomb(phiRadians, rapportDelta * phiRadians);
+  return partKa * Kah + (1 - partKa) * (1 - Math.sin(phiRadians));
+}
+
 export interface Poussee {
   /** Coefficient de pression retenu, K_a sauf si le mur est calcule plus pres du repos. */
   Ka: number;
