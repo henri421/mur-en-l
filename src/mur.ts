@@ -51,7 +51,7 @@ import {
 } from 'equilibre-statique';
 import { combinaisons, verifierProfil, type Approche, type Combinaison, type JeuActions, type ProfilMur } from './profil';
 import { combinaisons2e, verifierProfil2e, type Approche2e, type ClasseConsequences, type Profil2e } from './profil2e';
-import { coefficientPoussee, phiCalcul, portanceDrainee, portanceDrainee2e, pousseeActive, type Poussee, type ResultatPortance } from './sol';
+import { coefficientParement, coefficientPoussee, phiCalcul, portanceDrainee, portanceDrainee2e, pousseeActive, type Poussee, type ResultatPortance } from './sol';
 
 const MM_PAR_M = 1000;
 const LARGEUR_MM = 1000;
@@ -86,6 +86,12 @@ export interface Remblai {
   charges?: ChargeBande[];
   /** Part de K_a dans le coefficient de pression, de 0 a 1, le reste en K_0. 1 par defaut. */
   partKa?: number;
+  /**
+   * delta / phi' sur le parement arriere du voile, pour le calcul du voile seul
+   * (EN 1997-1 §9.5.1(6)) : 0 par defaut (Rankine), 2/3 pour un beton coffre.
+   * L'ecran virtuel garde delta = 0.
+   */
+  deltaParement?: number;
 }
 
 /** Charge repartie sur une bande de la surface du remblai, parallele au mur. */
@@ -142,6 +148,18 @@ export interface DonneesMur {
    * aux cas de la base (portance, sections), pas au glissement ni au renversement.
    */
   sourceUnique?: boolean;
+  /**
+   * Talon calcule comme le bloc qu'il forme avec les terres qu'il porte : la poussee
+   * sur l'ecran virtuel et la reaction du voile sur ces terres entrent dans le moment
+   * au nu du voile, la composante verticale E_av dans l'effort tranchant. Sinon,
+   * console chargee par les poids et la reaction du sol, plus sure.
+   */
+  talonPrisme?: boolean;
+  /**
+   * Frottement sous la semelle reparti comme la pression, dont le bras est la
+   * demi-epaisseur : il reduit les moments du patin et du talon au nu du voile.
+   */
+  frottementBase?: boolean;
 }
 
 export interface DonneesMur2e extends Omit<DonneesMur, 'approche'> {
@@ -275,6 +293,8 @@ function verifierDonnees(d: DonneesMur): void {
   positifOuNul(d.remblai.q, 'La surcharge', 'kPa');
   const partKa = d.remblai.partKa ?? 1;
   if (!(Number.isFinite(partKa) && partKa >= 0 && partKa <= 1)) throw new Error('La part de K_a doit être comprise entre 0 et 100 %.');
+  const dP = d.remblai.deltaParement ?? 0;
+  if (!(Number.isFinite(dP) && dP >= 0 && dP <= 1)) throw new Error("Le rapport delta/phi' sur le parement doit être compris entre 0 et 1 (-).");
   for (const c of d.remblai.charges ?? []) {
     positifOuNul(c.q, "L'intensité d'une charge en bande", 'kPa');
     positifOuNul(c.distance, "La distance d'une charge en bande", 'm');
@@ -594,20 +614,24 @@ function calculerCombinaison(d: DonneesMur, c: Combinaison, ctx: ContexteSection
 
   const As = d.armatures;
 
-  // Voile : console chargee par la poussee seule, N favorable.
-  const KaG = gG * Ka * gamma;
-  const KaQ = gQ * Ka * q;
-  let M_v = (KaG * h ** 3) / 6 + (KaQ * h ** 2) / 2;
-  let V_v = (KaG * h ** 2) / 2 + KaQ * h;
+  // Voile : console chargee par la poussee seule, N favorable. Sur le parement reel,
+  // K_h de Coulomb si delta est saisi ; sa composante verticale E_av, de meme
+  // coefficient que la poussee (meme source), comprime le voile et, appliquee au
+  // parement arriere, reduit le moment de E_av e_bas / 2.
+  const rapportDelta = d.remblai.deltaParement ?? 0;
+  const Kp = coefficientParement(phi_d, rapportDelta, d.remblai.partKa);
+  const pousseesVoile: { F: number; z: number }[] = [{ F: (gG * Kp * gamma * h * h) / 2, z: es + h / 3 }];
+  if (q > 0) pousseesVoile.push({ F: gQ * Kp * q * h, z: es + h / 2 });
   // Le voile est l'ecran reel : la bande entiere se diffuse depuis son parement.
   for (const x of d.remblai.charges ?? []) {
     const p = projectionBande(x.distance, x.largeur, phi_d, h);
     if (!p) continue;
-    const F = facteur(x.nature) * Ka * x.q * (p.z2 - p.z1);
-    V_v += F;
-    M_v += F * (h - (p.z1 + p.z2) / 2);
+    pousseesVoile.push({ F: facteur(x.nature) * Kp * x.q * (p.z2 - p.z1), z: es + h - (p.z1 + p.z2) / 2 });
   }
-  const N_v = c.structure.gG_stb.valeur * (b.voileRect.F + b.voileTri.F);
+  const V_v = pousseesVoile.reduce((s, x) => s + x.F, 0);
+  const E_av = V_v * Math.tan(rapportDelta * phi_d);
+  const M_v = pousseesVoile.reduce((s, x) => s + x.F * (x.z - es), 0) - (E_av * eBas) / 2;
+  const N_v = c.structure.gG_stb.valeur * (b.voileRect.F + b.voileTri.F) + E_av;
   const voile = verifierSection(ctx, 'voile', c.nom, 'arriere', eBas * MM_PAR_M, As.voileArriere, As.voileAvant, N_v, M_v, V_v, As.fck, As.fyk);
 
   const cas: CasBase[] = [];
@@ -676,7 +700,9 @@ function calculerCombinaison(d: DonneesMur, c: Combinaison, ctx: ContexteSection
       const wC = fc * d.gammaBeton * es;
       const rp = integrerPression(pression, 0, patin, patin, coupes);
       const V_p = rp.F - wC * patin;
-      const Mp = -rp.M - (wC * patin * patin) / 2;
+      // Frottement de base : part de H_d au prorata de la reaction, a es/2 sous l'axe.
+      const frottement = (F: number): number => (d.frottementBase ? (H_d * F * es) / (2 * V) : 0);
+      const Mp = -rp.M - (wC * patin * patin) / 2 - frottement(rp.F);
       patinV = pireSection(
         patinV,
         Mp >= 0
@@ -687,8 +713,13 @@ function calculerCombinaison(d: DonneesMur, c: Combinaison, ctx: ContexteSection
       // Talon : poids et terres moins reaction du sol, console au nu du voile.
       const wT = wC + fs * gamma * h + fq * q;
       const rt = integrerPression(pression, xh, b.B, xh, coupes);
-      const V_t = wT * talon + surTalon.reduce((s, x) => s + x.f * x.F, 0) - rt.F;
-      const M_t = (wT * talon * talon) / 2 + surTalon.reduce((s, x) => s + x.f * x.F * (x.x - xh), 0) - rt.M;
+      // Bloc talon et terres : la poussee de l'ecran virtuel (vers le patin) le
+      // redresse, la reaction du voile (vers le talon) le charge, autour de l'axe a es/2.
+      const prisme = d.talonPrisme
+        ? pousseesVoile.reduce((s, x) => s + x.F * (x.z - es / 2), 0) - pousseesCalcul.reduce((s, x) => s + x.F * (x.z - es / 2), 0)
+        : 0;
+      const V_t = wT * talon + surTalon.reduce((s, x) => s + x.f * x.F, 0) - rt.F - (d.talonPrisme ? E_av : 0);
+      const M_t = (wT * talon * talon) / 2 + surTalon.reduce((s, x) => s + x.f * x.F * (x.x - xh), 0) - rt.M + prisme - frottement(rt.F);
       talonV = pireSection(
         talonV,
         M_t >= 0

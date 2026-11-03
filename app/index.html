@@ -91,6 +91,14 @@
               <input type="checkbox" data-champ="sourceUnique" />
               <span>Principe de source unique (terres sur le talon)</span>
             </label>
+            <label class="case">
+              <input type="checkbox" data-champ="talonPrisme" />
+              <span>Talon calculé avec les terres qu’il porte</span>
+            </label>
+            <label class="case">
+              <input type="checkbox" data-champ="frottementBase" />
+              <span>Frottement sous la semelle dans le patin et le talon</span>
+            </label>
             <div data-role="coefficients"></div>
           </fieldset>
 
@@ -143,6 +151,10 @@
             <label>
               <span>Part de K<sub>a</sub> (%), le reste en K<sub>0</sub></span>
               <input type="text" inputmode="decimal" data-champ="partKa" />
+            </label>
+            <label>
+              <span>δ / φ′ sur le parement du voile (0 : Rankine ; 2/3 : béton coffré)</span>
+              <input type="text" inputmode="decimal" data-champ="deltaParement" />
             </label>
           </fieldset>
 

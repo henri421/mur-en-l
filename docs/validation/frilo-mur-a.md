@@ -131,6 +131,26 @@ Le taux DA2* de l'application, 2,17, est celui obtenu à la main plus haut avec 
 l'écart restant à Frilo vient des charges en bande (lot L2 du plan). V_Rd,c du voile passe à
 176,8 kN/m (Frilo 170,0, effort normal différent).
 
+## Après δ sur le parement, bloc du talon et frottement de base
+
+DA2*, source unique, δ = 2/3 φ′ sur le parement, bloc du talon et frottement de base, mêmes
+coefficients que ci-dessus. Frilo est pris sans les actions de catégorie C.
+
+| Grandeur | Frilo sans C | Avant | Après |
+| :- | -: | -: | -: |
+| Voile, M_Ed, terres seules (kN·m/m) | 218,1 | 274,0 | 218,1 |
+| Voile, M_Ed (kN·m/m) | 277,3 | 368,8 | 293,3 |
+| Voile, V_Ed (kN/m) | 142,9 | 185,8 | 154,7 |
+| Talon, M_Ed (kN·m/m) | 206,1 | 369,4 | 219,9 |
+| Talon, V_Ed (kN/m) | 154,4 | 248,9 | 155,2 |
+| Patin, M_Ed (kN·m/m) | 35,5 | 72,3 | 41,7 |
+| Patin, V_Ed (kN/m) | 183,7 | 222,6 | 190,1 |
+
+Le voile chargé par les terres seules retrouve Frilo au centième (`tests/bancs.test.ts`). Ce qui
+reste sur le voile et le talon vient des bandes 3 et 4. Pour le patin, l'outil garde l'enveloppe des
+cas : 41,7 kN·m/m est proche des 41,0 que donne la combinaison de tranchant de Frilo, au-delà des
+36,75 que Frilo retient en flexion.
+
 ## Constat
 
 La chaîne de calcul de l'outil est cohérente avec Frilo là où les hypothèses coïncident (poids,

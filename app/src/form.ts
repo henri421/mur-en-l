@@ -46,6 +46,9 @@ export interface Saisie {
   consequences: ClasseConsequences;
   /** Principe de source unique pour les terres sur le talon. */
   sourceUnique: boolean;
+  /** Bloc du talon avec ses terres, frottement de base dans les sections. */
+  talonPrisme: boolean;
+  frottementBase: boolean;
   /**
    * Coefficients partiels saisis, par cle du profil (`R2.gRv`), une table par
    * generation. Une cle absente ou vide garde la valeur recommandee.
@@ -67,6 +70,8 @@ export interface Saisie {
   q: string;
   /** Part de K_a en %, le reste en K_0. */
   partKa: string;
+  /** delta / phi' sur le parement du voile. */
+  deltaParement: string;
   bandes: BandeSaisie[];
   phiBase: string;
   deltaSurPhi: string;
@@ -91,6 +96,8 @@ export function saisieParDefaut(): Saisie {
     approche2: 'a+b',
     consequences: 'CC2',
     sourceUnique: false,
+    talonPrisme: false,
+    frottementBase: false,
     coefficients1: {},
     coefficients2: {},
     dimensionsControlees: false,
@@ -107,6 +114,7 @@ export function saisieParDefaut(): Saisie {
     phi: '30',
     q: '10',
     partKa: '100',
+    deltaParement: '0',
     bandes: [],
     phiBase: '30',
     deltaSurPhi: '1',
@@ -198,6 +206,7 @@ export function lireSaisie(s: Saisie): Lecture {
     const phi = nb(s.phi, "φ'_k");
     const q = nb(s.q, 'q');
     const partKa = nb(s.partKa, 'K_a') / 100;
+    const deltaParement = nb(s.deltaParement, "δ/φ'");
     const charges = s.bandes.map((b, i) => {
       const nom = champ(`bande ${i + 1}`, `strip ${i + 1}`);
       return {
@@ -246,9 +255,11 @@ export function lireSaisie(s: Saisie): Lecture {
 
     const communes = {
       sourceUnique: s.sourceUnique,
+      talonPrisme: s.talonPrisme,
+      frottementBase: s.frottementBase,
       geometrie,
       gammaBeton,
-      remblai: { gamma, phi, q, partKa, charges },
+      remblai: { gamma, phi, q, partKa, deltaParement, charges },
       fondation,
       armatures,
     };
@@ -354,6 +365,8 @@ export function relire(contenu: string): Saisie {
     approche2: choixOu(brut.approche2, ['a+b', 'c', 'd'] as const, d.approche2),
     consequences: choixOu(brut.consequences, ['CC1', 'CC2', 'CC3'] as const, d.consequences),
     sourceUnique: brut.sourceUnique === true,
+    talonPrisme: brut.talonPrisme === true,
+    frottementBase: brut.frottementBase === true,
     coefficients1: coefficientsOu(brut.coefficients1, '1re'),
     coefficients2: coefficientsOu(brut.coefficients2, '2e'),
     dimensionsControlees: brut.dimensionsControlees === true,
@@ -370,6 +383,7 @@ export function relire(contenu: string): Saisie {
     phi: texteOu(brut.phi, d.phi),
     q: texteOu(brut.q, d.q),
     partKa: texteOu(brut.partKa, d.partKa),
+    deltaParement: texteOu(brut.deltaParement, d.deltaParement),
     bandes,
     phiBase: texteOu(brut.phiBase, d.phiBase),
     deltaSurPhi: texteOu(brut.deltaSurPhi, d.deltaSurPhi),

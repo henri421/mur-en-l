@@ -23,7 +23,9 @@ describe('valeurs par defaut', () => {
     expect(c.donnees.approche).toBe('DA1');
     expect(c.donnees.geometrie).toEqual({ h: 3, eHaut: 0.3, eBas: 0.3, es: 0.4, patin: 0.7, talon: 1.6 });
     expect(c.donnees.gammaBeton).toBe(25);
-    expect(c.donnees.remblai).toEqual({ gamma: 18, phi: 30, q: 10, partKa: 1, charges: [] });
+    expect(c.donnees.remblai).toEqual({ gamma: 18, phi: 30, q: 10, partKa: 1, deltaParement: 0, charges: [] });
+    expect(c.donnees.talonPrisme).toBe(false);
+    expect(c.donnees.frottementBase).toBe(false);
     expect(c.donnees.fondation).toEqual({ phi: 30, deltaSurPhi: 1, portance: { mode: 'annexeD', phi: 30, c: 0, gamma: 19, D: 0.8 } });
     expect(c.donnees.armatures.fck).toBe(30);
     expect(c.donnees.armatures.fyk).toBe(500);
@@ -229,5 +231,21 @@ describe('coefficients partiels et options de methode', () => {
     const brut = JSON.parse(serialiser(s));
     brut.coefficients1 = { 'EQU.sol.gPhi': '1', inconnu: '2', 'R2.gRv': 3 };
     expect(relire(JSON.stringify(brut)).coefficients1).toEqual({ 'EQU.sol.gPhi': '1' });
+  });
+});
+
+describe('delta sur le parement, bloc du talon, frottement de base', () => {
+  it('lus et passes au noyau, relus a l identique', () => {
+    const s: Saisie = { ...saisieParDefaut(), deltaParement: '0,667', talonPrisme: true, frottementBase: true };
+    const c = lue(s);
+    expect(c.donnees.remblai.deltaParement).toBeCloseTo(0.667, 10);
+    expect(c.donnees.talonPrisme).toBe(true);
+    expect(c.donnees.frottementBase).toBe(true);
+    expect(relire(serialiser(s))).toEqual(s);
+  });
+
+  it('refuse un rapport illisible ; le noyau refuse un rapport superieur a 1', () => {
+    expect(refus({ ...saisieParDefaut(), deltaParement: 'x' })).toMatch(/δ/);
+    expect(() => verifier(lue({ ...saisieParDefaut(), deltaParement: '1,5' }))).toThrow(/parement/);
   });
 });

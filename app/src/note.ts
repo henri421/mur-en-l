@@ -21,6 +21,7 @@ const MATERIAUX = new Set(['f_ck', 'f_yk', 'gamma_c', 'D_lower', 'gamma', "phi'"
 const HYPOTHESES = new Set([
   'génération', 'generation', 'approche', 'approach', 'classe', 'class', 'dimensions', 'profondeur', 'depth',
   'source unique', 'single source', 'coefficients', 'factors',
+  'bloc du talon', 'heel block', 'frottement de base', 'base friction', "delta_p/phi'",
 ]);
 
 type Section = 'geometrie' | 'materiaux' | 'hypotheses' | 'charges';
