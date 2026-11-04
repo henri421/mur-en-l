@@ -480,3 +480,17 @@ describe('cohesion du remblai, terres sur le patin, charges en tete, sigma_R,d (
     expect(() => verifierMur({ ...m, remblai: { ...m.remblai, deltaAbout: 1.5 } }, profil)).toThrow(/about/);
   });
 });
+
+describe('E_av de l about sur le talon', () => {
+  it('le tranchant et le moment du talon prennent 1,35 E_av, au bras de la longueur du talon', () => {
+    // Remblai c = 5 kPa, delta about = 2/3 : E_av > 0 ; comparaison avec E_av rendu nul a la main.
+    const m = mur('DA1');
+    const avec = verifierMur({ ...m, remblai: { ...m.remblai, deltaAbout: 2 / 3 } }, profil).combinaisons[0];
+    const Pv = avec.poussee.Pv ?? 0;
+    expect(Pv).toBeGreaterThan(0);
+    const cas = avec.cas.find((x) => x.nom === 'DA1-1, verticales sup');
+    // V de la base compte 1,35 E_av.
+    const sans = verifierMur(m, profil).combinaisons[0].cas.find((x) => x.nom === 'DA1-1, verticales sup');
+    expect((cas?.V ?? 0) - (sans?.V ?? 0)).toBeCloseTo(1.35 * Pv, 6);
+  });
+});

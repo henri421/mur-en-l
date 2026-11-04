@@ -18,7 +18,7 @@ mur A de Frilo, mais d'autres données de sol et de charges : ce n'est pas le m�
 | Terres devant le mur | 0,80 m au-dessus de la base | idem |
 | Résistance sous la base | σ_R,d = 260 kPa | idem |
 | Poussées | stabilité en poussée active ; voile au repos (K₀ = 0,5) | part de K_a 100 %, part de K_a du voile 0 % |
-| Approche | DA2* (DIN 1054) | DA2*, source unique, bloc du talon, frottement de base ; γ_φ = 1,0 en EQU, C_Rd,c γ_C = 0,15, k₁ = 0,12 |
+| Approche | DA2* (DIN 1054) | DA2*, bloc du talon, frottement de base, sans source unique ; γ_φ = 1,0 en EQU, C_Rd,c γ_C = 0,15, k₁ = 0,12 |
 
 ## La méthode DIN 4085 des charges en bande
 
@@ -67,10 +67,10 @@ d'assise, dont les moyennes de MB sont reprises.
 | Voile au repos, M_Ed (kN·m/m) | 570,8 | 563,0 | −1,4 % |
 | Voile au repos, V_Ed (kN/m) | 262,1 | 260,7 | −0,5 % |
 | Voile, V_Rd,c (kN/m) | 219,7 | 218,5 | −0,5 % |
-| Talon, M_Ed (kN·m/m) | 507,7 | 490,5 | −3,4 % |
-| Talon, V_Ed (kN/m) | 212,1 | 190,8 (200,0 sans source unique) | −10 % (−6 %) |
+| Talon, M_Ed (kN·m/m) | 507,7 | 502,3 | −1,1 % |
+| Talon, V_Ed (kN/m) | 212,1 | 206,2 | −2,8 % |
 | Patin, M_Ed (kN·m/m) | 40,5 | 39,7 | −2 % |
-| Patin, V_Ed (kN/m) | 181,1 | 172,4 (176,7 sans source unique) | −5 % (−2 %) |
+| Patin, V_Ed (kN/m) | 181,1 | 176,7 | −2,4 % |
 
 Les deux calculs refusent le mur en portance (1,83) et acceptent la contrainte sous la base.
 
@@ -81,9 +81,10 @@ Les deux calculs refusent le mur en portance (1,83) et acceptent la contrainte s
 Au repos, MB prend ϑ₀ = 55,98° au lieu de l'angle de la poussée active : c'est le 1,4 % du voile.
 
 **Talon et patin, effort tranchant.** MB combine dans les sections les terres sur le talon à 1,0 avec
-la poussée à 1,35 (combinaison 27), ce que l'option « source unique » écarte. Sans elle, l'écart
-tombe à 6 et 2 %. Le reste vient de l'angle ϑ₀ et des composantes verticales des bandes, que MB
-ajoute aux verticales.
+la poussée à 1,35 (combinaison 27) : l'option « source unique » doit rester désactivée pour le suivre
+(avec elle, le tranchant du talon baisse de 4,5 %). La composante E_av de l'about charge le bout du
+talon dans les deux logiciels. Le reste vient de l'angle ϑ₀ et des composantes verticales des bandes,
+que MB ajoute aux verticales.
 
 **Contrainte sous la base.** B′ = 2,158 m dans l'application contre 2,13 dans MB, qui compte aussi
 les composantes verticales des bandes dans les moments.
@@ -93,6 +94,6 @@ l'application les prend en données.
 
 ## Constat
 
-Toutes données saisies, l'application retrouve MB à 2 % près sur la stabilité externe, et à 3,4 %
-près sur les moments des sections. Restent à reprendre la répartition trapézoïdale et l'angle ϑ₀ de
+Toutes données saisies, l'application retrouve MB à 2 % près sur la stabilité externe et à 3 % près
+sur les efforts des sections. Restent à reprendre la répartition trapézoïdale et l'angle ϑ₀ de
 la DIN 4085 (texte de la norme attendu), et la moyenne des couches du sol d'assise de la DIN 4017.
