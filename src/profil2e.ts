@@ -125,7 +125,7 @@ export function combinaisons2e(approche: Approche2e, cc: ClasseConsequences, p: 
   if (approche === 'a+b') {
     return [
       { nom: '(a) VC4 + M1', geotechnique: vc1, structure: vc1, sol: m1, resistance: sansR },
-      { nom: '(b) VC3 + M2', geotechnique: vc3, structure: vc3, sol: m2, resistance: sansR },
+      { nom: '(b) VC3 + M2', geotechnique: vc3, structure: vc3, sol: m2, resistance: sansR, jeu: 'A2' },
     ];
   }
   if (approche === 'c') {

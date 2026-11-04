@@ -483,7 +483,7 @@ describe('cohesion du remblai, terres sur le patin, charges en tete, sigma_R,d (
 
 describe('E_av de l about sur le talon', () => {
   it('le tranchant et le moment du talon prennent 1,35 E_av, au bras de la longueur du talon', () => {
-    // Remblai c = 5 kPa, delta about = 2/3 : E_av > 0 ; comparaison avec E_av rendu nul a la main.
+    // delta about = 2/3 : E_av > 0 ; comparaison au meme mur sans about frottant.
     const m = mur('DA1');
     const avec = verifierMur({ ...m, remblai: { ...m.remblai, deltaAbout: 2 / 3 } }, profil).combinaisons[0];
     const Pv = avec.poussee.Pv ?? 0;
@@ -492,5 +492,55 @@ describe('E_av de l about sur le talon', () => {
     // V de la base compte 1,35 E_av.
     const sans = verifierMur(m, profil).combinaisons[0].cas.find((x) => x.nom === 'DA1-1, verticales sup');
     expect((cas?.V ?? 0) - (sans?.V ?? 0)).toBeCloseTo(1.35 * Pv, 6);
+  });
+});
+
+describe('actions variables : gamma_Q propres et psi_0 (EN 1990, 6.10)', () => {
+  // Surcharge q = 10 kPa, action « UDL » (psi_0 = 0,4, gamma_Q = 1,35 en A1 et 1,15 en A2,
+  // comme le trafic LM1) ; charge Q en tete H = 2 kN, action « V » (psi_0 = 0,6, gamma du profil).
+  const m = mur('DA1');
+  const d: DonneesMur = {
+    ...m,
+    remblai: { ...m.remblai, actionQ: 'UDL' },
+    chargesTete: [{ nature: 'Q', action: 'V', H: 2, V: 0, M: 0 }],
+    actions: [
+      { id: 'UDL', psi0: 0.4, gammaA1: 1.35, gammaA2: 1.15 },
+      { id: 'V', psi0: 0.6 },
+    ],
+  };
+  const r = verifierMur(d, profil);
+  const comb = (nom: string) => {
+    const c = r.combinaisons.find((x) => x.nom === nom);
+    if (!c) throw new Error(nom);
+    return c;
+  };
+
+  it('une combinaison par action dominante', () => {
+    expect(r.combinaisons.map((c) => c.nom)).toEqual(['DA1-1, UDL dominante', 'DA1-1, V dominante', 'DA1-2, UDL dominante', 'DA1-2, V dominante']);
+  });
+
+  it('DA1-1 : H_d = 46,818 + 1,35 x 11,333 + 1,5 x 0,6 x 2 = 63,918 kN, puis 46,818 + 0,54 x 11,333 + 3 = 55,938 kN', () => {
+    expect(comb('DA1-1, UDL dominante').glissement.H_d).toBeCloseTo(63.918, 2);
+    expect(comb('DA1-1, V dominante').glissement.H_d).toBeCloseTo(55.938, 2);
+  });
+
+  it('DA1-2, jeu A2 : H_d = 42,566 + 1,15 x 13,910 + 1,3 x 0,6 x 2 = 60,123 kN', () => {
+    expect(comb('DA1-2, UDL dominante').glissement.H_d).toBeCloseTo(60.123, 2);
+  });
+
+  it('EQU : gamma_Q de A1 rapporte a 1,5, M_dst = 53,066 + 31,923 + 6,12 = 91,109 kN.m', () => {
+    expect(r.renversement.pivot.M_dst_d).toBeCloseTo(91.109, 2);
+    expect(r.renversement.cas).toBe('UDL dominante');
+  });
+
+  it('une seule action : un gamma_Q saisi s applique, le nom de la combinaison ne change pas', () => {
+    const u = verifierMur({ ...m, actions: [{ id: 'Q', psi0: 0.7, gammaA1: 1.35 }] }, profil);
+    expect(u.combinaisons.map((c) => c.nom)).toEqual(['DA1-1', 'DA1-2']);
+    expect(u.combinaisons[0].glissement.H_d).toBeCloseTo(46.818 + 1.35 * 11.3333, 2);
+  });
+
+  it('refuse psi_0 hors de [0 ; 1] et une action decrite deux fois', () => {
+    expect(() => verifierMur({ ...d, actions: [{ id: 'UDL', psi0: 1.2 }] }, profil)).toThrow(/psi_0/);
+    expect(() => verifierMur({ ...d, actions: [{ id: 'V', psi0: 1 }, { id: 'V', psi0: 1 }] }, profil)).toThrow(/deux fois/);
   });
 });
