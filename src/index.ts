@@ -30,6 +30,7 @@ export { coefficientsModifies, deriverProfil, listerCoefficients, type Coefficie
 export { coefficientCohesion, coefficientParement, coefficientPoussee, kaCoulomb, kaRankine, PHI_MINIMUM, pressionTerres, type Troncon, phiCalcul, portanceDrainee, portanceDrainee2e, pousseeActive, type DonneesPortance, type Poussee, type ResultatPortance } from './sol';
 export {
   contrainteSol,
+  ACTION_DEFAUT,
   angleRupture,
   pousseeBande,
   projectionBande,
@@ -38,6 +39,7 @@ export {
   type Armatures,
   type CasBase,
   type ChargeBande,
+  type ActionVariable,
   type ChargeTete,
   type DonneesMur,
   type DonneesMur2e,

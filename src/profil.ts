@@ -79,6 +79,11 @@ export interface Combinaison {
   resistance: JeuResistance;
   /** DA2* : portance avec excentricite et inclinaison caracteristiques. */
   effetsCaracteristiques?: boolean;
+  /**
+   * Jeu des actions geotechniques : A1 (ou VC1, VC4 en 2e generation) ou A2 (VC3).
+   * Il choisit le gamma_Q saisi pour une action variable. A1 si absent.
+   */
+  jeu?: 'A1' | 'A2';
 }
 
 function actions(source: string, gG_dst: number, gG_stb: number, gQ_dst: number): JeuActions {
@@ -151,12 +156,12 @@ export function combinaisons(approche: Approche, p: ProfilMur): Combinaison[] {
   if (approche === 'DA1') {
     return [
       { nom: 'DA1-1', geotechnique: p.A1, structure: p.A1, sol: p.M1, resistance: p.R1 },
-      { nom: 'DA1-2', geotechnique: p.A2, structure: p.A2, sol: p.M2, resistance: p.R1 },
+      { nom: 'DA1-2', geotechnique: p.A2, structure: p.A2, sol: p.M2, resistance: p.R1, jeu: 'A2' },
     ];
   }
   if (approche === 'DA2') return [{ nom: 'DA2', geotechnique: p.A1, structure: p.A1, sol: p.M1, resistance: p.R2 }];
   if (approche === 'DA2*') {
     return [{ nom: 'DA2*', geotechnique: p.A1, structure: p.A1, sol: p.M1, resistance: p.R2, effetsCaracteristiques: true }];
   }
-  return [{ nom: 'DA3', geotechnique: p.A2, structure: p.A1, sol: p.M2, resistance: p.R3 }];
+  return [{ nom: 'DA3', geotechnique: p.A2, structure: p.A1, sol: p.M2, resistance: p.R3, jeu: 'A2' }];
 }

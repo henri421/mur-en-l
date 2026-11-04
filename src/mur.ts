@@ -82,6 +82,8 @@ export interface Remblai {
   phi: number;
   /** Surcharge variable sur toute la surface du remblai (kPa). */
   q: number;
+  /** Action variable de la surcharge q (`ACTION_DEFAUT` sinon). */
+  actionQ?: string;
   /**
    * Cohesion effective caracteristique du remblai (kPa), 0 par defaut. Elle reduit la
    * poussee active de K_ch c', la pression restant au moins egale au minimum de la
@@ -122,6 +124,8 @@ export type MethodeBandes = 'diffusion' | 'din4085';
 /** Charge repartie sur une bande de la surface du remblai, parallele au mur. */
 export interface ChargeBande {
   nature: 'G' | 'Q';
+  /** Action variable d'une bande Q (`ACTION_DEFAUT` sinon). */
+  action?: string;
   /** Intensite (kPa). */
   q: number;
   /** Distance du parement arriere du voile au bord de la bande (m). */
@@ -152,9 +156,31 @@ export interface Fondation {
   sigmaRd?: number;
 }
 
+/**
+ * Action variable : son coefficient de combinaison psi_0 et, si besoin, ses propres
+ * gamma_Q (par exemple 1,35 et 1,15 pour le trafic routier LM1, EN 1990 annexe A2,
+ * tableaux A2.4(A) a (C)). Chaque action variable est tour a tour dominante, les
+ * autres a psi_0 (EN 1990, 6.10) ; les charges Q sans action appartiennent a « Q ».
+ */
+export interface ActionVariable {
+  id: string;
+  /** Nom affiche dans les combinaisons (l'identifiant sinon). */
+  nom?: string;
+  psi0: number;
+  /** gamma_Q des jeux A1, EQU, VC1 et VC4 (avant k_F) ; celui du profil si absent. */
+  gammaA1?: number;
+  /** gamma_Q des jeux A2 et VC3 ; celui du profil si absent. */
+  gammaA2?: number;
+}
+
+/** Identifiant de l'action variable par defaut. */
+export const ACTION_DEFAUT = 'Q';
+
 /** Charge appliquee en tete du voile, sur son axe. */
 export interface ChargeTete {
   nature: 'G' | 'Q';
+  /** Action variable d'une charge Q (`ACTION_DEFAUT` sinon). */
+  action?: string;
   /** Force horizontale vers le patin (kN/m). */
   H: number;
   /** Force verticale vers le bas (kN/m). */
@@ -194,6 +220,8 @@ export interface DonneesMur {
   hAval?: number;
   /** Charges en tete du voile. */
   chargesTete?: ChargeTete[];
+  /** Actions variables et leurs coefficients ; sans elles, une seule action « Q », psi_0 sans objet. */
+  actions?: ActionVariable[];
   /**
    * Talon calcule comme le bloc qu'il forme avec les terres qu'il porte : la poussee
    * sur l'ecran virtuel et la reaction du voile sur ces terres entrent dans le moment
@@ -353,6 +381,14 @@ function verifierDonnees(d: DonneesMur): void {
   if (d.fondation.sigmaRd !== undefined) positif(d.fondation.sigmaRd, 'La résistance sigma_R,d', 'kPa');
   for (const t of d.chargesTete ?? []) {
     if (![t.H, t.V, t.M].every(Number.isFinite)) throw new Error('Une charge en tête du voile doit être faite de nombres (kN/m, kN.m/m).');
+  }
+  const ids = new Set<string>();
+  for (const a of d.actions ?? []) {
+    if (ids.has(a.id)) throw new Error(`L'action variable ${a.id} est décrite deux fois (-).`);
+    ids.add(a.id);
+    if (!(Number.isFinite(a.psi0) && a.psi0 >= 0 && a.psi0 <= 1)) throw new Error(`psi_0 de l'action ${a.id} doit être compris entre 0 et 1 (-).`);
+    if (a.gammaA1 !== undefined) positif(a.gammaA1, `gamma_Q,A1 de l'action ${a.id}`, '-');
+    if (a.gammaA2 !== undefined) positif(a.gammaA2, `gamma_Q,A2 de l'action ${a.id}`, '-');
   }
   const pV = d.remblai.partKaVoile ?? partKa;
   if (!(Number.isFinite(pV) && pV >= 0 && pV <= 1)) throw new Error('La part de K_a du voile doit être comprise entre 0 et 100 %.');
@@ -515,6 +551,66 @@ function bandesSurTalon(d: DonneesMur) {
     if (L > 0) res.push({ indice, nature: c.nature, F: c.q * L, x: patin + eBas + c.distance + L / 2 });
   });
   return res;
+}
+
+/** Les actions variables chargees, dans l'ordre de `d.actions`, puis celles qui n'y sont pas decrites. */
+function actionsChargees(d: DonneesMur): ActionVariable[] {
+  const ids = new Set<string>();
+  if (d.remblai.q > 0) ids.add(d.remblai.actionQ ?? ACTION_DEFAUT);
+  for (const c of d.remblai.charges ?? []) if (c.nature === 'Q' && c.q !== 0) ids.add(c.action ?? ACTION_DEFAUT);
+  for (const t of d.chargesTete ?? []) if (t.nature === 'Q' && (t.H !== 0 || t.V !== 0 || t.M !== 0)) ids.add(t.action ?? ACTION_DEFAUT);
+  const decrites = d.actions ?? [];
+  const connues = new Set(decrites.map((a) => a.id));
+  return [...decrites.filter((a) => ids.has(a.id)), ...[...ids].filter((id) => !connues.has(id)).map((id) => ({ id, psi0: 1 }))];
+}
+
+/**
+ * Les memes donnees, chaque charge Q multipliee par `m(action)`. Tout le calcul etant
+ * lineaire en q (pressions, poids, efforts en tete), c'est la maniere exacte d'appliquer
+ * a une action son gamma_Q propre et son psi_0 sans toucher au reste.
+ */
+function ponderer(d: DonneesMur, m: (id: string) => number): DonneesMur {
+  return {
+    ...d,
+    remblai: {
+      ...d.remblai,
+      q: d.remblai.q * m(d.remblai.actionQ ?? ACTION_DEFAUT),
+      charges: (d.remblai.charges ?? []).map((c) => (c.nature === 'Q' ? { ...c, q: c.q * m(c.action ?? ACTION_DEFAUT) } : c)),
+    },
+    chargesTete: (d.chargesTete ?? []).map((t) => {
+      if (t.nature !== 'Q') return t;
+      const k = m(t.action ?? ACTION_DEFAUT);
+      return { ...t, H: t.H * k, V: t.V * k, M: t.M * k };
+    }),
+  };
+}
+
+/** Une repartition des actions variables : l'action dominante, ou aucune s'il n'y en a pas. */
+interface Repartition {
+  dominante: ActionVariable | null;
+  /** Suffixe du nom des combinaisons, vide s'il n'y a qu'une action. */
+  suffixe: string;
+}
+
+function repartitions(d: DonneesMur): Repartition[] {
+  const l = actionsChargees(d);
+  if (l.length <= 1) return [{ dominante: l[0] ?? null, suffixe: '' }];
+  return l.map((a) => ({ dominante: a, suffixe: `, ${a.nom ?? a.id} dominante` }));
+}
+
+/**
+ * Multiplicateur de chaque action pour une repartition : gamma_Q saisi rapporte a celui
+ * du jeu (`ref`), si le calcul est de calcul, puis psi_0 pour les actions concomitantes.
+ */
+function multiplicateur(d: DonneesMur, r: Repartition, jeu: 'A1' | 'A2' | null, ref: { A1: number; A2: number }): (id: string) => number {
+  const decrites = new Map((d.actions ?? []).map((a) => [a.id, a]));
+  return (id) => {
+    const a = decrites.get(id);
+    const g = a === undefined || jeu === null ? undefined : jeu === 'A1' ? a.gammaA1 : a.gammaA2;
+    const k = g === undefined || jeu === null ? 1 : g / ref[jeu];
+    const psi = r.dominante === null || r.dominante.id === id ? 1 : (a?.psi0 ?? 1);
+    return k * psi;
+  };
 }
 
 /** La methode de projection n'est pas celle d'une norme : tout resultat avec une bande le dit. */
@@ -978,27 +1074,48 @@ export function verifierMur(d: DonneesMur, profil: ProfilMur): ResultatMur {
     k1: pb.k1.valeur,
   };
 
+  // Actions variables : chacune dominante a son tour, les autres a psi_0. Le gamma_Q
+  // saisi d'une action se rapporte a celui du jeu ; EQU suit le jeu A1.
+  const reps = repartitions(d);
+  const ref = { A1: profil.A1.gQ_dst.valeur, A2: profil.A2.gQ_dst.valeur };
+
   // EQU : jeu propre, phi' divise par son gamma de A.2. Pas de portance ici.
   const phiE = phiCalcul(d.remblai.phi, profil.EQU.sol.gPhi.valeur);
   const KaE = coefficientPoussee(phiE, d.remblai.partKa);
-  const pE = pousseeMur(d, phiE, profil.EQU.sol.gC.valeur, KaE);
-  const eqE = verifierEquilibre(donneesEquilibre(d, pE, 0, phiE), profilPour(profil.EQU.actions));
-  const pivot = eqE.renversement[0];
+  const renvs = reps.map((r) => {
+    const dd = ponderer(d, multiplicateur(d, r, 'A1', ref));
+    const pE = pousseeMur(dd, phiE, profil.EQU.sol.gC.valeur, KaE);
+    return { pE, pivot: verifierEquilibre(donneesEquilibre(dd, pE, 0, phiE), profilPour(profil.EQU.actions)).renversement[0], suffixe: r.suffixe };
+  });
+  const renv1 = renvs.reduce((x, y) => (y.pivot.taux > x.pivot.taux ? y : x));
+  const pE = renv1.pE;
+  const pivot = renv1.pivot;
 
-  // Excentricite : toutes actions caracteristiques, surcharge comprise.
-  const KaK = coefficientPoussee(phiCalcul(d.remblai.phi, 1), d.remblai.partKa);
-  const pK = pousseeMur(d, phiCalcul(d.remblai.phi, 1), 1, KaK);
-  const eqK = verifierEquilibre(donneesEquilibre(d, pK, 0, phiCalcul(d.remblai.phi, 1)), profilPour(profil.EQU.actions)).excentricite;
-  if (!eqK) throw new Error('Aucun effort normal sur la base : vérifier les poids saisis.');
-  const excentricite = { e: eqK.e, limite: b.B / 3, taux: eqK.e / (b.B / 3), noyauCentral: eqK.noyauCentral };
+  // Excentricite : toutes actions caracteristiques, surcharge comprise ; la dominante a 1, les autres a psi_0.
+  const phiK = phiCalcul(d.remblai.phi, 1);
+  const KaK = coefficientPoussee(phiK, d.remblai.partKa);
+  const excs = reps.map((r) => {
+    const dd = ponderer(d, multiplicateur(d, r, null, ref));
+    const eqK = verifierEquilibre(donneesEquilibre(dd, pousseeMur(dd, phiK, 1, KaK), 0, phiK), profilPour(profil.EQU.actions)).excentricite;
+    if (!eqK) throw new Error('Aucun effort normal sur la base : vérifier les poids saisis.');
+    return eqK;
+  });
+  const eqK = excs.reduce((x, y) => (Math.abs(y.e) > Math.abs(x.e) ? y : x));
+  const excentricite = { e: eqK.e, limite: b.B / 3, taux: eqK.e / (b.B / 3), noyauCentral: excs.every((x) => x.noyauCentral) };
 
-  const res = combinaisons(d.approche, profil).map((c) => calculerCombinaison(d, c, ctx, REGLES_1RE));
+  const res = combinaisons(d.approche, profil).flatMap((c) =>
+    reps.map((r) => calculerCombinaison(ponderer(d, multiplicateur(d, r, c.jeu ?? 'A1', ref)), { ...c, nom: `${c.nom}${r.suffixe}` }, ctx, REGLES_1RE)),
+  );
 
   const avertissements: string[] = [];
   if (!excentricite.noyauCentral) avertissements.push('Résultante caractéristique hors du noyau central (e > B/6) : base partiellement décomprimée.');
   if (d.remblai.charges?.length) avertissements.push(AVERTISSEMENT_BANDES);
 
-  return conclure('1re', b, { Ka: KaE, phi_d: (phiE * 180) / Math.PI, poussee: pE, pivot, taux: pivot.taux }, excentricite, res, avertissements);
+  return conclure(
+    '1re', b,
+    { Ka: KaE, phi_d: (phiE * 180) / Math.PI, poussee: pE, pivot, taux: pivot.taux, ...(renv1.suffixe ? { cas: renv1.suffixe.slice(2) } : {}) },
+    excentricite, res, avertissements,
+  );
 }
 
 /**
@@ -1050,17 +1167,22 @@ export function verifierMur2e(d: DonneesMur2e, profil: Profil2e): ResultatMur {
   const pK = pousseeMur(m, phiRep, 1, Ka);
   const kF = profil.kF[d.consequences];
   const gQ = kF.valeur * profil.gQ.valeur;
-  const vc2 = (cas: string, gG: number, gTerres: number) => {
+  const reps = repartitions(m);
+  const ref = { A1: profil.gQ.valeur, A2: profil.gQ_VC3.valeur };
+  const vc2Une = (r: Repartition, cas: string, gG: number, gTerres: number) => {
     const source = 'EN 1990:2023, tableau A.1.8';
     const v = (valeur: number) => ({ valeur, source });
     const jeu: JeuActions = { gG_dst: v(gG), gG_stb: v(profil.gG_fav.valeur), gQ_dst: v(gQ), gQ_stb: v(0) };
-    const brut = verifierEquilibre(donneesEquilibre(m, pK, 0, phiRep), profilPour(jeu)).renversement[0];
+    const dd = ponderer(m, multiplicateur(m, r, 'A1', ref));
+    const brut = verifierEquilibre(donneesEquilibre(dd, pousseeMur(dd, phiRep, 1, Ka), 0, phiRep), profilPour(jeu)).renversement[0];
     const lignes = brut.lignes.map((l) =>
       l.elementaire.origine.includes('terres sur le talon') && l.role === 'stabilisant' ? { ...l, gamma: gTerres, Md: gTerres * Math.abs(l.M) } : l,
     );
     const M_stb_d = lignes.filter((l) => l.role === 'stabilisant').reduce((s, l) => s + l.Md, 0);
-    return { cas, pivot: { ...brut, lignes, M_stb_d, taux: M_stb_d > 0 ? brut.M_dst_d / M_stb_d : Infinity } };
+    return { cas: `${cas}${r.suffixe}`, pivot: { ...brut, lignes, M_stb_d, taux: M_stb_d > 0 ? brut.M_dst_d / M_stb_d : Infinity } };
   };
+  const vc2 = (cas: string, gG: number, gTerres: number) =>
+    reps.map((r) => vc2Une(r, cas, gG, gTerres)).reduce((x, y) => (y.pivot.taux > x.pivot.taux ? y : x));
   const a = vc2('VC2(a)', kF.valeur * profil.gG.valeur, profil.gG_stb_VC2a.valeur);
   const bb = vc2('VC2(b)', 1, 1);
   const renv = bb.pivot.taux > a.pivot.taux ? bb : a;
@@ -1068,7 +1190,6 @@ export function verifierMur2e(d: DonneesMur2e, profil: Profil2e): ResultatMur {
   // Excentricite, tableau 5.3 : permanentes seules, puis avec la variable.
   const milieu = b.B / 2;
   const tetesG = (d.chargesTete ?? []).filter((t) => t.nature === 'G');
-  const tetesQ = (d.chargesTete ?? []).filter((t) => t.nature === 'Q');
   const poids = [
     b.voileRect, b.voileTri, b.semelle, b.terres, b.terresPatin,
     ...bandesSurTalon(m).filter((x) => x.nature === 'G'),
@@ -1081,7 +1202,15 @@ export function verifierMur2e(d: DonneesMur2e, profil: Profil2e): ResultatMur {
   const V0 = poids.reduce((s, x) => s + x.F, 0);
   const M0 = poids.reduce((s, x) => s + x.F * (milieu - x.x), 0);
   const eG = (M0 + pK.P_G * (pK.zG ?? b.Ht / 3) + momentBandes('G') + momentTetes(tetesG)) / V0;
-  const eGQ = eG + ((pK.P_Q * b.Ht) / 2 + momentBandes('Q') + momentTetes(tetesQ)) / V0;
+  // Variable : la dominante a 1, les autres a psi_0, le plus excentre.
+  const eGQs = reps.map((r) => {
+    const dd = ponderer(m, multiplicateur(m, r, null, ref));
+    const pQ = pousseeMur(dd, phiRep, 1, Ka).P_Q;
+    const pbQ = pousseesBandes(dd, Ka, phiRep).filter((x) => x.nature === 'Q').reduce((s, x) => s + x.P * x.z, 0);
+    const tQ = momentTetes((dd.chargesTete ?? []).filter((t) => t.nature === 'Q'));
+    return eG + ((pQ * b.Ht) / 2 + pbQ + tQ) / V0;
+  });
+  const eGQ = eGQs.reduce((x, y) => (Math.abs(y) > Math.abs(x) ? y : x));
   const tauxG = Math.abs(eG) / (b.B / 6);
   const tauxGQ = Math.abs(eGQ) / (b.B / 3);
   const excentricite =
@@ -1096,7 +1225,9 @@ export function verifierMur2e(d: DonneesMur2e, profil: Profil2e): ResultatMur {
     }
   }
   const regles = regles2e(d);
-  const res = combinaisons2e(d.approche, d.consequences, profil).map((c) => calculerCombinaison(m, c, ctx, regles));
+  const res = combinaisons2e(d.approche, d.consequences, profil).flatMap((c) =>
+    reps.map((r) => calculerCombinaison(ponderer(m, multiplicateur(m, r, c.jeu ?? 'A1', ref)), { ...c, nom: `${c.nom}${r.suffixe}` }, ctx, regles)),
+  );
 
   const avertissements: string[] = [];
   const eMax = Math.max(...res.flatMap((r) => r.cas.map((c) => Math.abs(c.e))));
