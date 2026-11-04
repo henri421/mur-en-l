@@ -27,7 +27,7 @@ export {
   type Profil2e,
 } from './profil2e';
 export { coefficientsModifies, deriverProfil, listerCoefficients, type Coefficient } from './coefficients';
-export { coefficientParement, coefficientPoussee, kaCoulomb, kaRankine, phiCalcul, portanceDrainee, portanceDrainee2e, pousseeActive, type DonneesPortance, type Poussee, type ResultatPortance } from './sol';
+export { coefficientCohesion, coefficientParement, coefficientPoussee, kaCoulomb, kaRankine, PHI_MINIMUM, pressionTerres, type Troncon, phiCalcul, portanceDrainee, portanceDrainee2e, pousseeActive, type DonneesPortance, type Poussee, type ResultatPortance } from './sol';
 export {
   contrainteSol,
   angleRupture,
@@ -38,6 +38,7 @@ export {
   type Armatures,
   type CasBase,
   type ChargeBande,
+  type ChargeTete,
   type DonneesMur,
   type DonneesMur2e,
   type Fondation,

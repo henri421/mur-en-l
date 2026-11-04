@@ -73,6 +73,71 @@ export function coefficientParement(phiRadians: number, rapportDelta: number, pa
   return partKa * Kah + (1 - partKa) * (1 - Math.sin(phiRadians));
 }
 
+/**
+ * Coefficient horizontal de cohesion, ecran vertical, terre-plein horizontal :
+ * K_ch = 2 cos phi cos delta / (1 + sin(phi + delta)) (DIN 4085:2017 ; EN 1997-1
+ * annexe C). Pour delta = 0, K_ch = 2 sqrt(K_a). Angles en radians.
+ */
+export function coefficientCohesion(phi: number, delta = 0): number {
+  return (2 * Math.cos(phi) * Math.cos(delta)) / (1 + Math.sin(phi + delta));
+}
+
+/** Angle de frottement du Mindesterddruck de la DIN 4085:2017 : 40 degres. */
+export const PHI_MINIMUM = (40 * Math.PI) / 180;
+
+/** Un troncon vertical de l'ecran : profondeurs depuis la surface (m) et delta / phi'. */
+export interface Troncon {
+  z0: number;
+  z1: number;
+  rapportDelta: number;
+}
+
+/**
+ * Pression des terres sur un ecran vertical fait de troncons, remblai horizontal :
+ * e_h(z) = K_h gamma z - p K_ch c, bornee en dessous par la pression minimale
+ * K_h,min gamma z (DIN 4085:2017, Mindesterddruck avec phi = 40 degres et le meme
+ * delta / phi'), et rendue nulle si elle est negative. Sans cohesion, la borne ne
+ * s'applique pas : e_h = K_h gamma z, comme avant.
+ *
+ * K_h = p K_ah + (1 - p) K_0 ; la cohesion ne reduit que la part active. Rend la
+ * resultante horizontale E (kN/m), la profondeur de son point d'application depuis
+ * la surface (m) et la composante verticale E_v = somme de E_troncon tan(delta).
+ * Angles en radians, c en kPa.
+ */
+export function pressionTerres(gamma: number, phi: number, c: number, partKa: number, troncons: Troncon[]): { E: number; z: number; Ev: number } {
+  let E = 0;
+  let M = 0;
+  let Ev = 0;
+  const K0 = 1 - Math.sin(phi);
+  for (const t of troncons) {
+    if (!(t.z1 > t.z0)) continue;
+    const delta = t.rapportDelta * phi;
+    const Kh = coefficientParement(phi, t.rapportDelta, partKa);
+    const B = partKa * coefficientCohesion(phi, delta) * c;
+    const Kmin = partKa * kaCoulomb(PHI_MINIMUM, t.rapportDelta * PHI_MINIMUM).Kah + (1 - partKa) * K0;
+    // Morceaux lineaires e = alpha z + beta sur [u ; v].
+    const morceaux: [number, number, number, number][] = [];
+    if (c > 0 && Kh > Kmin) {
+      const zs = B / ((Kh - Kmin) * gamma);
+      const coupe = Math.min(Math.max(zs, t.z0), t.z1);
+      morceaux.push([t.z0, coupe, Kmin * gamma, 0], [coupe, t.z1, Kh * gamma, -B]);
+    } else if (c > 0) {
+      morceaux.push([t.z0, t.z1, Kmin * gamma, 0]);
+    } else {
+      morceaux.push([t.z0, t.z1, Kh * gamma, 0]);
+    }
+    let Et = 0;
+    for (const [u, v, alpha, beta] of morceaux) {
+      if (!(v > u)) continue;
+      Et += (alpha * (v * v - u * u)) / 2 + beta * (v - u);
+      M += (alpha * (v ** 3 - u ** 3)) / 3 + (beta * (v * v - u * u)) / 2;
+    }
+    E += Et;
+    Ev += Et * Math.tan(delta);
+  }
+  return { E, z: E > 0 ? M / E : 0, Ev };
+}
+
 export interface Poussee {
   /** Coefficient de pression retenu, K_a sauf si le mur est calcule plus pres du repos. */
   Ka: number;
@@ -80,6 +145,10 @@ export interface Poussee {
   P_G: number;
   /** Resultante de la surcharge (kN/m), a mi-hauteur. */
   P_Q: number;
+  /** Hauteur de P_G au-dessus de la base (m) : H/3 sans cohesion ni about frottant. */
+  zG?: number;
+  /** Composante verticale de P_G sur l'about du talon (kN/m), vers le bas. */
+  Pv?: number;
 }
 
 /** Poussee sur un ecran vertical de hauteur H, remblai sans cohesion, sans nappe. */

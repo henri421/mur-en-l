@@ -430,3 +430,53 @@ describe('charges en bande, DIN 4085 (DA1-1, Q 20 kPa a 2,6 m, large de 1 m)', (
     expect(() => verifierMur({ ...d, remblai: { ...d.remblai, methodeBandes: 'autre' as 'din4085' } }, profil)).toThrow(/Méthode/);
   });
 });
+
+describe('cohesion du remblai, terres sur le patin, charges en tete, sigma_R,d (DA1-1 sauf mention)', () => {
+  const m = mur('DA1');
+  const premier = (x: DonneesMur) => verifierMur(x, profil).combinaisons[0];
+
+  it('c = 5 kPa : pression minimale jusqu a 2,7677 m, E = 23,040 kN a 1,1166 m de la base, H_d = 48,104 kN', () => {
+    // K_a = 1/3, K_ch = 1,1547, K_min = tan2(25) = 0,21744 ; z* = K_ch c / ((K_a - K_min) gamma).
+    const c = premier({ ...m, remblai: { ...m.remblai, c: 5 } });
+    expect(c.poussee.P_G).toBeCloseTo(23.04, 2);
+    expect(c.poussee.zG).toBeCloseTo(1.1166, 3);
+    expect(c.glissement.H_d).toBeCloseTo(48.104, 2);
+    expect(c.glissement.taux).toBeCloseTo(0.6176, 3);
+  });
+
+  it('terres devant le mur sur 0,8 m : 18 x 0,7 x 0,4 = 5,04 kN sur le patin', () => {
+    const r = verifierMur({ ...m, hAval: 0.8 }, profil);
+    expect(r.poids.terresPatin).toBeCloseTo(5.04, 6);
+    expect(r.renversement.pivot.M_stb_d).toBeCloseTo(187.6 + 0.9 * 5.04 * 0.35, 2);
+    // N_d = 134,9 + 5,04 ; R_d = 139,94 x tan 30.
+    expect(r.combinaisons[0].glissement.taux).toBeCloseTo(63.818 / (139.94 * Math.tan(Math.PI / 6)), 3);
+  });
+
+  it('charge Q en tete, H = 2 kN, M = 1 kN.m : H_d + 3, voile + 10,5 kN.m, M_dst + 11,7 kN.m', () => {
+    const d = { ...m, chargesTete: [{ nature: 'Q' as const, H: 2, V: 0, M: 1 }] };
+    const r = verifierMur(d, profil);
+    expect(r.combinaisons[0].glissement.H_d).toBeCloseTo(66.818, 2);
+    expect(r.combinaisons[0].voile.M_Ed).toBeCloseTo(58.95 + 10.5, 2);
+    expect(r.combinaisons[0].voile.V_Ed).toBeCloseTo(51.45 + 3, 2);
+    expect(r.renversement.pivot.M_dst_d).toBeCloseTo(88.537 + 11.7, 2);
+  });
+
+  it('charge G verticale en tete : favorable pour le glissement, a 1,0', () => {
+    const r = verifierMur({ ...m, chargesTete: [{ nature: 'G', H: 0, V: 10, M: 0 }] }, profil);
+    expect(r.combinaisons[0].glissement.N_d).toBeCloseTo(144.9, 6);
+  });
+
+  it('sigma_R,d : contrainte V / B prime de chaque cas, la plus forte retenue', () => {
+    const c = verifierMur({ ...mur('DA2'), fondation: { ...m.fondation, sigmaRd: 100 } }, profil).combinaisons[0];
+    const inf = c.cas.find((x) => x.nom === 'DA2, verticales inf');
+    expect(inf?.sigmaEd).toBeCloseTo(134.9 / 1.875, 0);
+    const max = Math.max(...c.cas.map((x) => x.sigmaEd ?? 0));
+    expect(c.contrainte?.sigmaEd).toBeCloseTo(max, 10);
+    expect(c.contrainte?.taux).toBeCloseTo(max / 100, 10);
+  });
+
+  it('refuse sigma_R,d nul et un rapport delta/phi sur l about superieur a 1', () => {
+    expect(() => verifierMur({ ...m, fondation: { ...m.fondation, sigmaRd: 0 } }, profil)).toThrow(/sigma_R,d/);
+    expect(() => verifierMur({ ...m, remblai: { ...m.remblai, deltaAbout: 1.5 } }, profil)).toThrow(/about/);
+  });
+});
