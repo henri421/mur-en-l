@@ -17,7 +17,7 @@ describe('page', () => {
   it('un champ par valeur saisie', () => {
     const d = saisieParDefaut();
     for (const [cle, v] of Object.entries(d)) {
-      if (cle === 'generation' || cle === 'bandes' || cle === 'coefficients1' || cle === 'coefficients2') continue;
+      if (cle === 'generation' || cle === 'bandes' || cle === 'actions' || cle === 'coefficients1' || cle === 'coefficients2') continue;
       if (typeof v === 'object') {
         expect(page).toContain(`data-champ="${cle}.diametre"`);
         expect(page).toContain(`data-champ="${cle}.espacement"`);
@@ -38,7 +38,7 @@ describe('page', () => {
   });
 
   it('bandes, zones de resultat, options du dessin, sorties', () => {
-    for (const r of ['bandes', 'coefficients', 'erreur', 'vues', 'coupe', 'base', 'projection', 'verdicts', 'volets', 'projet', 'element', 'ouvrir']) {
+    for (const r of ['bandes', 'actions', 'coefficients', 'erreur', 'vues', 'coupe', 'base', 'projection', 'verdicts', 'volets', 'projet', 'element', 'ouvrir']) {
       expect(page).toContain(`data-role="${r}"`);
     }
     for (const a of ['ajouter-bande', 'exporter-note', 'exporter-coupe', 'exporter-resultats', 'enregistrer', 'reinitialiser']) {

@@ -149,6 +149,10 @@
               <input type="text" inputmode="decimal" data-champ="q" />
             </label>
             <label>
+              <span>Action variable de q</span>
+              <select data-champ="actionQ" data-liste-actions></select>
+            </label>
+            <label>
               <span>Part de K<sub>a</sub> (%), le reste en K<sub>0</sub></span>
               <input type="text" inputmode="decimal" data-champ="partKa" />
             </label>
@@ -171,6 +175,29 @@
           </fieldset>
 
           <fieldset>
+            <legend>Actions variables</legend>
+            <div class="defilement">
+              <table class="bandes">
+                <thead>
+                  <tr>
+                    <th scope="col">Nom</th>
+                    <th scope="col">ψ<sub>0</sub></th>
+                    <th scope="col">γ<sub>Q</sub> A1, EQU</th>
+                    <th scope="col">γ<sub>Q</sub> A2</th>
+                    <th scope="col"><span class="clause">Retirer</span></th>
+                  </tr>
+                </thead>
+                <tbody data-role="actions"></tbody>
+              </table>
+            </div>
+            <div class="boutons">
+              <button type="button" data-action="ajouter-action">Ajouter une action</button>
+              <button type="button" data-action="ajouter-lm1">Ajouter le LM1 (TS et UDL)</button>
+            </div>
+            <p class="note">Sans action décrite, toutes les charges Q forment une seule action « Q ». Chaque action est dominante à son tour, les autres à ψ<sub>0</sub> (EN 1990, 6.10). γ<sub>Q</sub> vide : valeur du profil. LM1 : ψ<sub>0</sub> = 0,75 (TS) et 0,4 (UDL), γ<sub>Q</sub> = 1,35 et 1,15 (EN 1990, annexe A2).</p>
+          </fieldset>
+
+          <fieldset>
             <legend>Charges en bande</legend>
             <label>
               <span>Méthode de poussée</span>
@@ -184,6 +211,7 @@
                 <thead>
                   <tr>
                     <th scope="col">Nature</th>
+                    <th scope="col">Action</th>
                     <th scope="col">q (kN/m²)</th>
                     <th scope="col">Distance (m)</th>
                     <th scope="col">Largeur (m)</th>
@@ -206,10 +234,10 @@
           <fieldset>
             <legend>Charges en tête du voile</legend>
             <table class="tete">
-              <thead><tr><th></th><th>H vers le patin (kN/m)</th><th>V vers le bas (kN/m)</th><th>M vers le patin (kN·m/m)</th></tr></thead>
+              <thead><tr><th></th><th>H vers le patin (kN/m)</th><th>V vers le bas (kN/m)</th><th>M vers le patin (kN·m/m)</th><th>Action</th></tr></thead>
               <tbody>
-                <tr><th>Permanente G</th><td><input type="text" inputmode="decimal" data-champ="teteGH" aria-label="G, H" /></td><td><input type="text" inputmode="decimal" data-champ="teteGV" aria-label="G, V" /></td><td><input type="text" inputmode="decimal" data-champ="teteGM" aria-label="G, M" /></td></tr>
-                <tr><th>Variable Q</th><td><input type="text" inputmode="decimal" data-champ="teteQH" aria-label="Q, H" /></td><td><input type="text" inputmode="decimal" data-champ="teteQV" aria-label="Q, V" /></td><td><input type="text" inputmode="decimal" data-champ="teteQM" aria-label="Q, M" /></td></tr>
+                <tr><th>Permanente G</th><td><input type="text" inputmode="decimal" data-champ="teteGH" aria-label="G, H" /></td><td><input type="text" inputmode="decimal" data-champ="teteGV" aria-label="G, V" /></td><td><input type="text" inputmode="decimal" data-champ="teteGM" aria-label="G, M" /></td><td></td></tr>
+                <tr><th>Variable Q</th><td><input type="text" inputmode="decimal" data-champ="teteQH" aria-label="Q, H" /></td><td><input type="text" inputmode="decimal" data-champ="teteQV" aria-label="Q, V" /></td><td><input type="text" inputmode="decimal" data-champ="teteQM" aria-label="Q, M" /></td><td><select data-champ="actionTeteQ" data-liste-actions aria-label="Q, action"></select></td></tr>
               </tbody>
             </table>
           </fieldset>

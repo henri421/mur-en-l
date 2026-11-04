@@ -32,9 +32,30 @@ export interface ArmatureSaisie {
   espacement: string;
 }
 
+/** Une action variable telle que saisie ; gamma vide : celui du profil. */
+export interface ActionSaisie {
+  nom: string;
+  psi0: string;
+  gammaA1: string;
+  gammaA2: string;
+}
+
+/** Action variable implicite des charges Q sans action choisie. */
+export const ACTION_PAR_DEFAUT = 'Q';
+
+/** Les actions du LM1 de l'EN 1991-2 : tandem TS et charge repartie UDL (EN 1990 A2, tableaux A2.1 et A2.4). */
+export function actionsLM1(): ActionSaisie[] {
+  return [
+    { nom: 'TS', psi0: '0,75', gammaA1: '1,35', gammaA2: '1,15' },
+    { nom: 'UDL', psi0: '0,4', gammaA1: '1,35', gammaA2: '1,15' },
+  ];
+}
+
 /** Une charge repartie de largeur finie, telle que saisie. */
 export interface BandeSaisie {
   nature: 'G' | 'Q';
+  /** Action variable d'une bande Q ; absente : `ACTION_PAR_DEFAUT`. */
+  action?: string;
   q: string;
   distance: string;
   largeur: string;
@@ -92,6 +113,11 @@ export interface Saisie {
   /** Methode de poussee des charges en bande. */
   methodeBandes: MethodeBandes;
   bandes: BandeSaisie[];
+  /** Actions variables decrites ; vide : une seule action « Q ». */
+  actions: ActionSaisie[];
+  /** Action de la surcharge q et de la charge Q en tete. */
+  actionQ: string;
+  actionTeteQ: string;
   phiBase: string;
   deltaSurPhi: string;
   modePortance: ModePortance;
@@ -147,6 +173,9 @@ export function saisieParDefaut(): Saisie {
     deltaParement: '0',
     methodeBandes: 'diffusion',
     bandes: [],
+    actions: [],
+    actionQ: ACTION_PAR_DEFAUT,
+    actionTeteQ: ACTION_PAR_DEFAUT,
     phiBase: '30',
     deltaSurPhi: '1',
     modePortance: 'annexeD',
@@ -249,13 +278,24 @@ export function lireSaisie(s: Saisie): Lecture {
       V: nb(V, `${champ('tête', 'top')} ${nature}, V`),
       M: nb(M, `${champ('tête', 'top')} ${nature}, M`),
     });
-    const chargesTete = [tete('G', s.teteGH, s.teteGV, s.teteGM), tete('Q', s.teteQH, s.teteQV, s.teteQM)].filter(
-      (t) => t.H !== 0 || t.V !== 0 || t.M !== 0
-    );
+    const teteQ = { ...tete('Q', s.teteQH, s.teteQV, s.teteQM), ...(s.actionTeteQ !== ACTION_PAR_DEFAUT ? { action: s.actionTeteQ } : {}) };
+    const chargesTete = [tete('G', s.teteGH, s.teteGV, s.teteGM), teteQ].filter((t) => t.H !== 0 || t.V !== 0 || t.M !== 0);
+    const noms = new Set<string>();
+    const actions = s.actions.map((a, i) => {
+      const lib = `${champ('action', 'action')} ${i + 1}`;
+      const id = a.nom.trim();
+      if (id === '') throw new Refus(textes().messages.nomAction(lib));
+      if (noms.has(id)) throw new Refus(textes().messages.nomActionDouble(id));
+      noms.add(id);
+      const g1 = a.gammaA1.trim() === '' ? undefined : nb(a.gammaA1, `${lib}, γ_Q,A1`);
+      const g2 = a.gammaA2.trim() === '' ? undefined : nb(a.gammaA2, `${lib}, γ_Q,A2`);
+      return { id, psi0: nb(a.psi0, `${lib}, ψ_0`), ...(g1 === undefined ? {} : { gammaA1: g1 }), ...(g2 === undefined ? {} : { gammaA2: g2 }) };
+    });
     const charges = s.bandes.map((b, i) => {
       const nom = champ(`bande ${i + 1}`, `strip ${i + 1}`);
       return {
         nature: b.nature,
+        ...(b.nature === 'Q' && b.action !== undefined && b.action !== ACTION_PAR_DEFAUT ? { action: b.action } : {}),
         q: nb(b.q, `${nom}, q`),
         distance: nb(b.distance, `${nom}, distance`),
         largeur: nb(b.largeur, `${nom}, ${champ('largeur', 'width')}`),
@@ -307,7 +347,9 @@ export function lireSaisie(s: Saisie): Lecture {
       remblai: {
         gamma, phi, q, partKa, ...(partKaVoile === undefined ? {} : { partKaVoile }),
         c: cRemblai, deltaAbout, deltaParement, methodeBandes: s.methodeBandes, charges,
+        ...(s.actionQ !== ACTION_PAR_DEFAUT ? { actionQ: s.actionQ } : {}),
       },
+      ...(actions.length > 0 ? { actions } : {}),
       hAval,
       chargesTete,
       fondation,
@@ -405,7 +447,7 @@ export function relire(contenu: string): Saisie {
         const o = valeur as Record<string, unknown>;
         if (!nature(o.nature)) return [];
         if (typeof o.q !== 'string' || typeof o.distance !== 'string' || typeof o.largeur !== 'string') return [];
-        return [{ nature: o.nature, q: o.q, distance: o.distance, largeur: o.largeur }];
+        return [{ nature: o.nature, ...(typeof o.action === 'string' ? { action: o.action } : {}), q: o.q, distance: o.distance, largeur: o.largeur }];
       })
     : d.bandes;
 
@@ -447,6 +489,15 @@ export function relire(contenu: string): Saisie {
     deltaParement: texteOu(brut.deltaParement, d.deltaParement),
     methodeBandes: choixOu(brut.methodeBandes, ['diffusion', 'din4085'] as const, d.methodeBandes),
     bandes,
+    actions: Array.isArray(brut.actions)
+      ? brut.actions.flatMap((v) => {
+          if (typeof v !== 'object' || v === null) return [];
+          const o = v as Record<string, unknown>;
+          return [{ nom: texteOu(o.nom, ''), psi0: texteOu(o.psi0, '1'), gammaA1: texteOu(o.gammaA1, ''), gammaA2: texteOu(o.gammaA2, '') }];
+        })
+      : d.actions,
+    actionQ: texteOu(brut.actionQ, d.actionQ),
+    actionTeteQ: texteOu(brut.actionTeteQ, d.actionTeteQ),
     phiBase: texteOu(brut.phiBase, d.phiBase),
     deltaSurPhi: texteOu(brut.deltaSurPhi, d.deltaSurPhi),
     modePortance: choixOu(brut.modePortance, ['annexeD', 'saisie'] as const, d.modePortance),

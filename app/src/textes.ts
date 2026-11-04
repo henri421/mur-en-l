@@ -12,6 +12,8 @@ const FR = {
       `${champ} : valeur strictement positive attendue, reçue « ${brut} ».`,
     format: (recu: string, attendu: string) => `Fichier de format ${recu} : attendu ${attendu}.`,
     rienAExporter: 'Aucun calcul valide à exporter : corriger la saisie.',
+    nomAction: (champ: string) => `${champ} : nom attendu.`,
+    nomActionDouble: (nom: string) => `L’action ${nom} est nommée deux fois.`,
     nouvelleVersion: 'Une nouvelle version est disponible. Recharger maintenant ?',
   },
   coupe: {
@@ -123,6 +125,9 @@ const FR = {
       hAval: 'Hauteur des terres devant le mur, au-dessus de la base',
       sigmaRd: 'Résistance de calcul du terrain σ_R,d',
       chargeTete: (n: string) => `Charge en tête du voile, ${n}`,
+      actionVariable: (n: string) => `Action variable ${n}`,
+      valeurAction: (psi: string, g1: string, g2: string) =>
+        `ψ0 = ${psi} ; γQ = ${g1 === '' ? 'profil' : g1} (A1, EQU), ${g2 === '' ? 'profil' : g2} (A2)`,
       symboleMethodeBandes: 'méthode des bandes',
       methodeBandes: 'Poussée des charges en bande',
       methodes: { diffusion: 'diffusion, K q entre les deux droites', din4085: 'DIN 4085, part dans le coin de rupture' },
@@ -231,6 +236,8 @@ const EN: Textes = {
     positifAttendu: (champ: string, brut: string) => `${champ}: positive value expected, got “${brut}”.`,
     format: (recu: string, attendu: string) => `File of format ${recu}: expected ${attendu}.`,
     rienAExporter: 'No valid calculation to export: correct the input.',
+    nomAction: (champ: string) => `${champ}: name expected.`,
+    nomActionDouble: (nom: string) => `Action ${nom} is named twice.`,
     nouvelleVersion: 'A new version is available. Reload now?',
   },
   coupe: {
@@ -342,6 +349,9 @@ const EN: Textes = {
       hAval: 'Front earth height above the base',
       sigmaRd: 'Design ground resistance σ_R,d',
       chargeTete: (n: string) => `Stem top load, ${n}`,
+      actionVariable: (n: string) => `Variable action ${n}`,
+      valeurAction: (psi: string, g1: string, g2: string) =>
+        `ψ0 = ${psi}; γQ = ${g1 === '' ? 'profile' : g1} (A1, EQU), ${g2 === '' ? 'profile' : g2} (A2)`,
       symboleMethodeBandes: 'strip method',
       methodeBandes: 'Pressure from load strips',
       methodes: { diffusion: 'spreading, K q between the two lines', din4085: 'DIN 4085, part inside the failure wedge' },
@@ -490,7 +500,9 @@ const NOMS: Record<string, string> = {
 const sansApostrophe = (s: string): string => s.replace(/’/g, "'");
 
 const nomEn = (nom: string): string =>
-  NOMS[nom] ?? NOMS[sansApostrophe(nom)] ?? nom.replace(/, résistances$/, ', resistances');
+  NOMS[nom] ??
+  NOMS[sansApostrophe(nom)] ??
+  nom.replace(/, résistances(?=$|, )/, ', resistances').replace(/, (.+) dominante$/, ', $1 leading');
 
 const EXACTES: Record<string, string> = {
   // Noms de combinaisons.
@@ -545,11 +557,16 @@ export const phrase = traducteur(EXACTES, [
   [/^(.+), verticales inf$/, (_m, nom: string) => `${nomEn(nom)}, verticals low`],
   [/^(.+), verticales sup, surcharge sur le talon$/, (_m, nom: string) => `${nomEn(nom)}, verticals high, surcharge on the heel`],
   [/^(.+), verticales sup$/, (_m, nom: string) => `${nomEn(nom)}, verticals high`],
+  // Combinaisons avec une action dominante.
+  [/^(.+), (.+) dominante$/, (_m, nom: string, a: string) => `${nomEn(nom)}, ${a} leading`],
+  [/^(.+) dominante$/, (_m, a: string) => `${a} leading`],
   // Origines du pivot qui portent un numero de bande.
   [/^bande (\d+) sur le talon$/, (_m, n: string) => `strip ${n} on the heel`],
   [/^poussée de la bande (\d+)$/, (_m, n: string) => `pressure from strip ${n}`],
   // Coefficients.
   [/^Coefficient inconnu : (.+)\.$/, (_m, cle: string) => `Unknown factor: ${cle}.`],
+  [/^L'action variable (.+) est décrite deux fois \(-\)\.$/, (_m, a: string) => `Variable action ${a} is described twice (-).`],
+  [/^psi_0 de l'action (.+) doit être compris entre 0 et 1 \(-\)\.$/, (_m, a: string) => `psi_0 of action ${a} must be between 0 and 1 (-).`],
   [/^Le coefficient (.+) doit être un nombre strictement positif \(-\)\.$/, (_m, cle: string) => `Factor ${cle} must be a strictly positive number (-).`],
   // Erreurs de donnees.
   [/^(.+) doit être un nombre strictement positif \((.+)\)\.$/, (_m, nom: string, u: string) => `${nomEn(nom)} must be a strictly positive number (${unite(u)}).`],

@@ -19,7 +19,7 @@ import {
   telecharger,
 } from 'aedificium-ui';
 import type { ResultatMur } from '../../src/index';
-import { lireSaisie, relire, saisieParDefaut, serialiser, verifier, type Calcul, type Saisie } from './form';
+import { ACTION_PAR_DEFAUT, actionsLM1, lireSaisie, relire, saisieParDefaut, serialiser, verifier, type Calcul, type Saisie } from './form';
 import { baseSvg, coupe, phiDeLaVue, projectionSvg, vuesDisponibles } from './dessin';
 import { STYLES_TRACE } from './export';
 import { noteDuCalcul } from './note';
@@ -44,6 +44,7 @@ const zones = {
   erreur: exige<HTMLElement>('[data-role="erreur"]'),
   bandes: exige<HTMLElement>('[data-role="bandes"]'),
   coefficients: exige<HTMLElement>('[data-role="coefficients"]'),
+  actions: exige<HTMLElement>('[data-role="actions"]'),
   vues: exige<HTMLElement>('[data-role="vues"]'),
   coupe: exige<HTMLElement>('[data-role="coupe"]'),
   base: exige<HTMLElement>('[data-role="base"]'),
@@ -110,7 +111,43 @@ function ecrireLeChamp(chemin: string, valeur: string | boolean): void {
   else (racine[cle] as Racine)[sous] = valeur;
 }
 
+/** Noms des actions variables proposees aux charges Q : l'action implicite, puis celles decrites. */
+function nomsActions(): string[] {
+  return [ACTION_PAR_DEFAUT, ...saisie.actions.map((a) => a.nom.trim()).filter((n) => n !== '' && n !== ACTION_PAR_DEFAUT)];
+}
+
+function optionsActions(choisie: string): string {
+  const noms = nomsActions();
+  const liste = noms.includes(choisie) ? noms : [...noms, choisie];
+  return liste.map((n) => `<option value="${echapper(n)}"${n === choisie ? ' selected' : ''}>${echapper(n)}</option>`).join('');
+}
+
+/** Les selecteurs d'action hors tableaux : surcharge q et charge Q en tete. */
+function remplirSelecteursActions(): void {
+  for (const e of formulaire.querySelectorAll<HTMLSelectElement>('select[data-liste-actions]')) {
+    const chemin = e.dataset.champ as 'actionQ' | 'actionTeteQ';
+    e.innerHTML = optionsActions(saisie[chemin]);
+  }
+}
+
+/** Le tableau des actions variables, une ligne par action. */
+function dessinerActions(): void {
+  zones.actions.innerHTML = saisie.actions
+    .map(
+      (a, i) => `<tr>
+        <td><input type="text" data-action-ligne="${i}" data-action-champ="nom" value="${echapper(a.nom)}" aria-label="Nom de l action ${i + 1}" /></td>
+        <td><input type="text" inputmode="decimal" data-action-ligne="${i}" data-action-champ="psi0" value="${echapper(a.psi0)}" aria-label="psi_0 de l action ${i + 1}" /></td>
+        <td><input type="text" inputmode="decimal" data-action-ligne="${i}" data-action-champ="gammaA1" value="${echapper(a.gammaA1)}" placeholder="profil" aria-label="gamma_Q A1 de l action ${i + 1}" /></td>
+        <td><input type="text" inputmode="decimal" data-action-ligne="${i}" data-action-champ="gammaA2" value="${echapper(a.gammaA2)}" placeholder="profil" aria-label="gamma_Q A2 de l action ${i + 1}" /></td>
+        <td><button type="button" data-action="retirer-action" data-action-ligne="${i}" aria-label="Retirer l action ${i + 1}">&times;</button></td>
+      </tr>`
+    )
+    .join('');
+}
+
 function ecrireSaisie(): void {
+  dessinerActions();
+  remplirSelecteursActions();
   for (const e of formulaire.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-champ]')) {
     const chemin = e.dataset.champ;
     if (chemin === undefined) continue;
@@ -146,6 +183,7 @@ function dessinerBandes(): void {
           <option value="G"${b.nature === 'G' ? ' selected' : ''}>G</option>
           <option value="Q"${b.nature === 'Q' ? ' selected' : ''}>Q</option>
         </select></td>
+        <td><select data-bande="${i}" data-bande-champ="action" aria-label="Action de la bande ${i + 1}"${b.nature === 'G' ? ' disabled' : ''}>${optionsActions(b.action ?? ACTION_PAR_DEFAUT)}</select></td>
         <td><input type="text" inputmode="decimal" data-bande="${i}" data-bande-champ="q" value="${echapper(b.q)}" aria-label="q de la bande ${i + 1}" /></td>
         <td><input type="text" inputmode="decimal" data-bande="${i}" data-bande-champ="distance" value="${echapper(b.distance)}" aria-label="distance de la bande ${i + 1}" /></td>
         <td><input type="text" inputmode="decimal" data-bande="${i}" data-bande-champ="largeur" value="${echapper(b.largeur)}" aria-label="largeur de la bande ${i + 1}" /></td>
@@ -252,8 +290,29 @@ formulaire.addEventListener('input', (evenement) => {
     const i = Number(index);
     const bande = saisie.bandes[i];
     if (bande === undefined) return;
-    if (champBande === 'nature') bande.nature = cible.value === 'G' ? 'G' : 'Q';
+    if (champBande === 'nature') {
+      bande.nature = cible.value === 'G' ? 'G' : 'Q';
+      dessinerBandes();
+    } else if (champBande === 'action') bande.action = cible.value;
     else if (champBande === 'q' || champBande === 'distance' || champBande === 'largeur') bande[champBande] = cible.value;
+    return recalculer();
+  }
+
+  const ligneAction = cible.dataset.actionLigne;
+  const champAction = cible.dataset.actionChamp as 'nom' | 'psi0' | 'gammaA1' | 'gammaA2' | undefined;
+  if (ligneAction !== undefined && champAction !== undefined) {
+    const a = saisie.actions[Number(ligneAction)];
+    if (a === undefined) return;
+    const ancien = a.nom;
+    a[champAction] = cible.value;
+    // Un renommage suit les charges qui portaient l'ancien nom.
+    if (champAction === 'nom' && ancien !== cible.value) {
+      for (const b of saisie.bandes) if (b.action === ancien) b.action = cible.value;
+      if (saisie.actionQ === ancien) saisie.actionQ = cible.value;
+      if (saisie.actionTeteQ === ancien) saisie.actionTeteQ = cible.value;
+      remplirSelecteursActions();
+      dessinerBandes();
+    }
     return recalculer();
   }
 
@@ -316,6 +375,30 @@ document.addEventListener('click', (evenement) => {
     const i = Number(cible.dataset.bande);
     if (Number.isInteger(i)) saisie.bandes.splice(i, 1);
     dessinerBandes();
+    return recalculer();
+  }
+  if (action === 'ajouter-action') {
+    saisie.actions.push({ nom: `Q${saisie.actions.length + 2}`, psi0: '0,7', gammaA1: '', gammaA2: '' });
+    ecrireSaisie();
+    return recalculer();
+  }
+  if (action === 'ajouter-lm1') {
+    const presentes = new Set(saisie.actions.map((a) => a.nom));
+    for (const a of actionsLM1()) if (!presentes.has(a.nom)) saisie.actions.push(a);
+    ecrireSaisie();
+    return recalculer();
+  }
+  if (action === 'retirer-action') {
+    const i = Number(cible.dataset.actionLigne);
+    const a = saisie.actions[i];
+    if (a !== undefined) {
+      saisie.actions.splice(i, 1);
+      // Les charges de l'action retiree reviennent a l'action implicite.
+      for (const b of saisie.bandes) if (b.action === a.nom) delete b.action;
+      if (saisie.actionQ === a.nom) saisie.actionQ = ACTION_PAR_DEFAUT;
+      if (saisie.actionTeteQ === a.nom) saisie.actionTeteQ = ACTION_PAR_DEFAUT;
+    }
+    ecrireSaisie();
     return recalculer();
   }
   if (action === 'coefficients-recommandes') {

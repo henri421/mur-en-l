@@ -66,6 +66,10 @@ Page publiée : <https://henri421.github.io/mur-en-l/> (en anglais : `/en/`).
 - **About du talon frottant**, en option : δ/φ′ sur l'épaisseur de la semelle, avec E_av.
 - **Terres devant le mur** : leur poids sur le patin compte, comme une action permanente du sol.
 - **Charges en tête du voile** : force horizontale, force verticale et moment, permanents ou variables.
+- **Actions variables** : chaque charge Q appartient à une action, avec son ψ₀ et, si besoin, ses
+  propres γ_Q en A1 (et EQU) et en A2 ; chaque action est dominante à son tour, les autres à ψ₀
+  (EN 1990, 6.10). Un bouton ajoute le LM1 de l'EN 1991-2 : TS (ψ₀ = 0,75) et UDL (ψ₀ = 0,4),
+  γ_Q = 1,35 et 1,15. Sans action décrite, toutes les charges Q forment une seule action.
 - **Contrainte sous la base**, si σ_R,d est saisi : σ_E,d = V_d / B′ ≤ σ_R,d, en plus de la portance.
 - **Part de K_a du voile**, en option : le voile peut être calculé au repos pendant que la stabilité
   externe reste en poussée active, comme le proposent Frilo et MB.

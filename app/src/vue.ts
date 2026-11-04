@@ -402,6 +402,9 @@ export function blocEntrees(calcul: Calcul): BlocResultat {
   ligne("c'_r", e.cRemblai, `${aff(remblai.c ?? 0, 1)} kPa`);
   ligne("delta_t/phi'", e.deltaAbout, aff(remblai.deltaAbout ?? 0, 3));
   ligne('h_aval', e.hAval, `${aff(d.hAval ?? 0, 3)} m`);
+  for (const a of d.actions ?? []) {
+    ligne(`action ${a.id}`, e.actionVariable(a.id), e.valeurAction(aff(a.psi0, 2), a.gammaA1 === undefined ? '' : aff(a.gammaA1, 2), a.gammaA2 === undefined ? '' : aff(a.gammaA2, 2)));
+  }
   (d.chargesTete ?? []).forEach((ch) => {
     ligne(`tête ${ch.nature}`, e.chargeTete(ch.nature), `H = ${aff(ch.H, 2)} kN/m ; V = ${aff(ch.V, 2)} kN/m ; M = ${aff(ch.M, 2)} kN·m/m`);
   });
