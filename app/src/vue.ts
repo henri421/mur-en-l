@@ -383,7 +383,9 @@ export function blocEntrees(calcul: Calcul): BlocResultat {
   ligne("phi'", e.remblaiPhi, `${aff(remblai.phi, 1)} °`);
   ligne('q', e.surcharge, `${aff(remblai.q, 1)} kPa`);
   ligne('K_a', e.partKa, `${aff((remblai.partKa ?? 1) * 100, 0)} %`);
+  if (remblai.partKaVoile !== undefined) ligne('K_a,voile', e.partKaVoile, `${aff(remblai.partKaVoile * 100, 0)} %`);
   ligne("delta_p/phi'", e.deltaParement, aff(remblai.deltaParement ?? 0, 3));
+  ligne(e.symboleMethodeBandes, e.methodeBandes, e.methodes[remblai.methodeBandes ?? 'diffusion']);
   (remblai.charges ?? []).forEach((ch, i) => {
     ligne(e.symboleBande(i + 1), e.bande(i + 1), e.valeurBande(ch.nature, aff(ch.q, 1), aff(ch.distance, 2), aff(ch.largeur, 2)));
   });

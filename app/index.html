@@ -153,6 +153,10 @@
               <input type="text" inputmode="decimal" data-champ="partKa" />
             </label>
             <label>
+              <span>Part de K<sub>a</sub> pour le voile (%), 0 : voile au repos</span>
+              <input type="text" inputmode="decimal" data-champ="partKaVoile" placeholder="comme ci-dessus" />
+            </label>
+            <label>
               <span>δ / φ′ sur le parement du voile (0 : Rankine ; 2/3 : béton coffré)</span>
               <input type="text" inputmode="decimal" data-champ="deltaParement" />
             </label>
@@ -160,6 +164,13 @@
 
           <fieldset>
             <legend>Charges en bande</legend>
+            <label>
+              <span>Méthode de poussée</span>
+              <select data-champ="methodeBandes">
+                <option value="diffusion">Diffusion (K q entre les deux droites)</option>
+                <option value="din4085">DIN 4085 (part dans le coin de rupture)</option>
+              </select>
+            </label>
             <div class="defilement">
               <table class="bandes">
                 <thead>

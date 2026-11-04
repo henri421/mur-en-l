@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { phiCalcul, portanceDrainee } from '../src/sol';
+import { kaCoulomb, phiCalcul, portanceDrainee } from '../src/sol';
 import { profilRecommande } from '../src/profil';
 import { deriverProfil } from '../src/coefficients';
-import { verifierMur, type DonneesMur } from '../src/mur';
+import { angleRupture, pousseeBande, verifierMur, type DonneesMur } from '../src/mur';
 
 /**
  * Banc externe : mur A calcule dans Frilo WSM+ 2026-0-7 (DIN EN 1997-1/NA), voir
@@ -61,5 +61,61 @@ describe('Banc Frilo, mur A', () => {
     const P_G = verifierMur(murA(), profilEqu).combinaisons[0].poussee.P_G;
     expect(P_G / 111.47).toBeGreaterThan(1);
     expect(P_G / 111.47).toBeLessThan(1.025);
+  });
+});
+
+/**
+ * Banc externe : mb BauStatik S530.de 2026.009, mur dit « coupe type 1 », poussee des
+ * bandes selon la DIN 4085:2017-08 (rapport du 04/11/2026). Remblai phi' = 30 degres.
+ * MB prend sur l'ecran virtuel un frottement moyen delta = 2,36 degres (E_av / E_ah de
+ * la bande 2 : 0,21 / 5,10) : theta = 59,42 degres et K_aVh = 0,551 dans le rapport.
+ */
+describe('Banc MB, bandes selon la DIN 4085', () => {
+  const phi = phiCalcul(30, 1);
+  const delta = phiCalcul(2.36, 1);
+  const Kah = kaCoulomb(phi, delta).Kah;
+
+  it('angle de rupture : 60 degres sans frottement, 59,42 avec delta = 2,36 degres', () => {
+    expect((angleRupture(phi) * 180) / Math.PI).toBeCloseTo(60, 6);
+    expect((angleRupture(phi, delta) * 180) / Math.PI).toBeCloseTo(59.42, 1);
+  });
+
+  it('K_aVh = K_ah tan(theta) = 0,551', () => {
+    expect(Kah * Math.tan(angleRupture(phi, delta))).toBeCloseTo(0.551, 3);
+  });
+
+  it('bande 2, 5 kPa, de 0 a 1,85 m de l ecran : E_ah = 5,10 kN/m sur [0 ; 3,13 m]', () => {
+    const p = pousseeBande(0, 1.85, phi, 6.48, Kah, 'din4085', delta);
+    expect((p?.P ?? 0) * 5).toBeCloseTo(5.1, 2);
+    expect(p?.z2).toBeCloseTo(3.13, 2);
+  });
+
+  it('bande 3, 20 kPa, a 1,85 m, large de 3 m : seule la part dans le coin pousse, E_ah = 21,81 kN/m sur [1,07 ; 6,48 m]', () => {
+    const p = pousseeBande(1.85, 3, phi, 6.48, Kah, 'din4085', delta);
+    expect((p?.P ?? 0) * 20).toBeCloseTo(21.81, 1);
+    expect(p?.z1).toBeCloseTo(1.07, 2);
+    expect(p?.z2).toBeCloseTo(6.48, 2);
+  });
+
+  it('voile au repos, terres seules : M_Ed = 1,35 x 365,23 et V_Ed = 1,35 x 180,21 (MB, K_0 = 0,5)', () => {
+    const m = murA();
+    const d: DonneesMur = { ...m, remblai: { ...m.remblai, gamma: 19.5, phi: 30, charges: [], partKa: 1, partKaVoile: 0 } };
+    const c = verifierMur(d, profilEqu).combinaisons[0];
+    expect(c.voile.M_Ed).toBeCloseTo(1.35 * 365.23, 0);
+    expect(c.voile.V_Ed).toBeCloseTo(1.35 * 180.21, 0);
+    // La stabilite externe reste en poussee active.
+    expect(c.poussee.P_G).toBeCloseTo(0.5 * (1 / 3) * 19.5 * 6.48 ** 2, 6);
+  });
+
+  it('bande 4, a 4,85 m de l ecran : hors du coin, aucune poussee', () => {
+    expect(pousseeBande(4.85, 7, phi, 6.48, Kah, 'din4085', delta)).toBeNull();
+  });
+
+  it('la diffusion de l outil donne la meme poussee pour une bande au droit de l ecran, plus pour une bande eloignee', () => {
+    const K = 1 / 3;
+    const d0 = pousseeBande(0, 1.85, phi, 6.48, K, 'diffusion');
+    const n0 = pousseeBande(0, 1.85, phi, 6.48, K, 'din4085');
+    expect(d0?.P).toBeCloseTo(n0?.P ?? 0, 6);
+    expect(pousseeBande(1.85, 3, phi, 6.48, K, 'diffusion')?.P ?? 0).toBeGreaterThan(pousseeBande(1.85, 3, phi, 6.48, K, 'din4085')?.P ?? 0);
   });
 });

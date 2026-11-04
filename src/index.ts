@@ -30,6 +30,8 @@ export { coefficientsModifies, deriverProfil, listerCoefficients, type Coefficie
 export { coefficientParement, coefficientPoussee, kaCoulomb, kaRankine, phiCalcul, portanceDrainee, portanceDrainee2e, pousseeActive, type DonneesPortance, type Poussee, type ResultatPortance } from './sol';
 export {
   contrainteSol,
+  angleRupture,
+  pousseeBande,
   projectionBande,
   verifierMur,
   verifierMur2e,
@@ -40,6 +42,7 @@ export {
   type DonneesMur2e,
   type Fondation,
   type GeometrieMur,
+  type MethodeBandes,
   type PortanceSaisie,
   type Remblai,
   type ResultatCombinaison,
