@@ -911,8 +911,11 @@ function calculerCombinaison(d: DonneesMur, c: Combinaison, ctx: ContexteSection
       const prisme = d.talonPrisme
         ? pousseesVoile.reduce((s, x) => s + x.F * (x.z - es / 2), 0) - pousseesCalcul.reduce((s, x) => s + x.F * (x.z - es / 2), 0)
         : 0;
-      const V_t = wT * talon + surTalon.reduce((s, x) => s + x.f * x.F, 0) - rt.F - (d.talonPrisme ? E_av : 0);
-      const M_t = (wT * talon * talon) / 2 + surTalon.reduce((s, x) => s + x.f * x.F * (x.x - xh), 0) - rt.M + prisme - frottement(rt.F);
+      // E_av de l'about charge le bout du talon, au bras de sa longueur.
+      const PvD = gG * Pv;
+      const V_t = wT * talon + surTalon.reduce((s, x) => s + x.f * x.F, 0) + PvD - rt.F - (d.talonPrisme ? E_av : 0);
+      const M_t =
+        (wT * talon * talon) / 2 + surTalon.reduce((s, x) => s + x.f * x.F * (x.x - xh), 0) + PvD * talon - rt.M + prisme - frottement(rt.F);
       talonV = pireSection(
         talonV,
         M_t >= 0

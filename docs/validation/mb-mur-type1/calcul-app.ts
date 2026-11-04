@@ -21,7 +21,7 @@ import { deriverProfil, profilRecommande, verifierMur, type DonneesMur } from '.
     chargesTete: [{ nature: 'Q', H: 2.8, V: 0, M: 2.52 }],
     armatures: { fck: 30, fyk: 500, a: 55, voileArriere: 4021, voileAvant: 314, semelleHaut: 6283, semelleBas: 524 },
     approche: 'DA2*',
-    sourceUnique: true,
+    sourceUnique: false,
     talonPrisme: true,
     frottementBase: true,
   };
