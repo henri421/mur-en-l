@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { kaCoulomb, phiCalcul, portanceDrainee } from '../src/sol';
+import { coefficientCohesion, kaCoulomb, phiCalcul, PHI_MINIMUM, portanceDrainee, pressionTerres } from '../src/sol';
 import { profilRecommande } from '../src/profil';
 import { deriverProfil } from '../src/coefficients';
 import { angleRupture, pousseeBande, verifierMur, type DonneesMur } from '../src/mur';
@@ -117,5 +117,37 @@ describe('Banc MB, bandes selon la DIN 4085', () => {
     const n0 = pousseeBande(0, 1.85, phi, 6.48, K, 'din4085');
     expect(d0?.P).toBeCloseTo(n0?.P ?? 0, 6);
     expect(pousseeBande(1.85, 3, phi, 6.48, K, 'diffusion')?.P ?? 0).toBeGreaterThan(pousseeBande(1.85, 3, phi, 6.48, K, 'din4085')?.P ?? 0);
+  });
+});
+
+describe('Banc MB, poussee des terres avec cohesion (DIN 4085)', () => {
+  // Remblai gamma = 19,5, phi' = 30, c' = 2,5 kPa ; sol sur 6,08 m (delta = 0), about de
+  // 0,40 m avec delta = 20 degres. MB : K_ach = 1,155 et 0,922, K_min = 0,217 et 0,179,
+  // E_ah = 117,20 kN/m a 4,39 m sous la tete, E_av = 4,65 kN/m.
+  const phi = phiCalcul(30, 1);
+
+  it('coefficients : K_ch = 1,155 et 0,922 ; K_min = 0,217 et 0,179', () => {
+    expect(coefficientCohesion(phi)).toBeCloseTo(1.155, 3);
+    expect(coefficientCohesion(phi, phiCalcul(20, 1))).toBeCloseTo(0.922, 3);
+    expect(kaCoulomb(PHI_MINIMUM, 0).Kah).toBeCloseTo(0.217, 3);
+    expect(kaCoulomb(PHI_MINIMUM, (2 / 3) * PHI_MINIMUM).Kah).toBeCloseTo(0.179, 3);
+  });
+
+  it('E_ah = 117,20 kN/m, z = 4,39 m, E_av = 4,65 kN/m', () => {
+    const r = pressionTerres(19.5, phi, 2.5, 1, [
+      { z0: 0, z1: 6.08, rapportDelta: 0 },
+      { z0: 6.08, z1: 6.48, rapportDelta: 2 / 3 },
+    ]);
+    expect(r.E).toBeCloseTo(117.2, 1);
+    expect(r.z).toBeCloseTo(4.39, 2);
+    expect(r.Ev).toBeCloseTo(4.65, 2);
+  });
+
+  it('mur complet : la poussee de l outil est celle de MB', () => {
+    const m = murA();
+    const d: DonneesMur = { ...m, remblai: { ...m.remblai, gamma: 19.5, phi: 30, c: 2.5, deltaAbout: 2 / 3, charges: [] } };
+    const c = verifierMur(d, profilEqu).combinaisons[0];
+    expect(c.poussee.P_G).toBeCloseTo(117.2, 1);
+    expect(c.poussee.Pv).toBeCloseTo(4.65, 2);
   });
 });

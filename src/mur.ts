@@ -51,7 +51,7 @@ import {
 } from 'equilibre-statique';
 import { combinaisons, verifierProfil, type Approche, type Combinaison, type JeuActions, type ProfilMur } from './profil';
 import { combinaisons2e, verifierProfil2e, type Approche2e, type ClasseConsequences, type Profil2e } from './profil2e';
-import { coefficientParement, coefficientPoussee, phiCalcul, portanceDrainee, portanceDrainee2e, pousseeActive, type Poussee, type ResultatPortance } from './sol';
+import { coefficientParement, coefficientPoussee, phiCalcul, portanceDrainee, portanceDrainee2e, pousseeActive, pressionTerres, type Poussee, type ResultatPortance } from './sol';
 
 const MM_PAR_M = 1000;
 const LARGEUR_MM = 1000;
@@ -82,6 +82,17 @@ export interface Remblai {
   phi: number;
   /** Surcharge variable sur toute la surface du remblai (kPa). */
   q: number;
+  /**
+   * Cohesion effective caracteristique du remblai (kPa), 0 par defaut. Elle reduit la
+   * poussee active de K_ch c', la pression restant au moins egale au minimum de la
+   * DIN 4085 (phi = 40 degres) ; elle ne reduit pas la poussee au repos.
+   */
+  c?: number;
+  /**
+   * delta / phi' sur l'about du talon, partie beton de l'ecran virtuel (0 par defaut) :
+   * K_ah de Coulomb sur l'epaisseur de la semelle et composante verticale E_av.
+   */
+  deltaAbout?: number;
   /** Charges reparties de largeur finie, en plus de q. */
   charges?: ChargeBande[];
   /** Part de K_a dans le coefficient de pression, de 0 a 1, le reste en K_0. 1 par defaut. */
@@ -133,6 +144,23 @@ export interface Fondation {
    */
   deltaSurPhi: number;
   portance: PortanceSaisie;
+  /**
+   * Resistance de calcul du terrain sous la base sigma_R,d (kPa), en plus de la
+   * portance : sigma_E,d = V_d / B' <= sigma_R,d, comme la verification du
+   * « Sohlwiderstand » de la DIN 1054:2010 (A 6.10), valeur du rapport geotechnique.
+   */
+  sigmaRd?: number;
+}
+
+/** Charge appliquee en tete du voile, sur son axe. */
+export interface ChargeTete {
+  nature: 'G' | 'Q';
+  /** Force horizontale vers le patin (kN/m). */
+  H: number;
+  /** Force verticale vers le bas (kN/m). */
+  V: number;
+  /** Moment qui fait basculer le mur vers le patin (kN.m/m). */
+  M: number;
 }
 
 export interface Armatures {
@@ -162,6 +190,10 @@ export interface DonneesMur {
    * aux cas de la base (portance, sections), pas au glissement ni au renversement.
    */
   sourceUnique?: boolean;
+  /** Hauteur des terres devant le mur, au-dessus de la base (m) : leur poids sur le patin compte. 0 par defaut. */
+  hAval?: number;
+  /** Charges en tete du voile. */
+  chargesTete?: ChargeTete[];
   /**
    * Talon calcule comme le bloc qu'il forme avec les terres qu'il porte : la poussee
    * sur l'ecran virtuel et la reaction du voile sur ces terres entrent dans le moment
@@ -204,6 +236,8 @@ export interface CasBase {
   sol: ResultatPortance | null;
   /** DA2* : actions caracteristiques dont viennent e, B' et l'inclinaison. */
   caracteristique?: { V: number; H: number; M: number; e: number };
+  /** Contrainte moyenne de calcul V / B' (kPa), si sigma_R,d est saisi. */
+  sigmaEd?: number;
   /** Resistance de calcul (kN/m). */
   R_d: number;
   taux: number;
@@ -239,6 +273,8 @@ export interface ResultatCombinaison {
   cas: CasBase[];
   /** Cas de portance le plus sollicite. */
   portance: CasBase;
+  /** Contrainte moyenne sous la base, si sigma_R,d est saisi : cas le plus sollicite. */
+  contrainte?: { nom: string; sigmaEd: number; sigmaRd: number; taux: number };
   voile: VerifSection;
   patin: VerifSection;
   talon: VerifSection;
@@ -249,7 +285,7 @@ export interface ResultatMur {
   B: number;
   /** Hauteur de l'ecran virtuel (m). */
   Ht: number;
-  poids: { voile: number; semelle: number; terresTalon: number; surchargeTalon: number };
+  poids: { voile: number; semelle: number; terresTalon: number; surchargeTalon: number; terresPatin: number };
   /** Renversement autour de l'arete du patin. */
   renversement: {
     Ka: number;
@@ -310,6 +346,14 @@ function verifierDonnees(d: DonneesMur): void {
   if (d.remblai.methodeBandes !== undefined && !['diffusion', 'din4085'].includes(d.remblai.methodeBandes)) {
     throw new Error('Méthode des charges en bande inconnue (-).');
   }
+  positifOuNul(d.remblai.c ?? 0, 'La cohésion du remblai', 'kPa');
+  const dA = d.remblai.deltaAbout ?? 0;
+  if (!(Number.isFinite(dA) && dA >= 0 && dA <= 1)) throw new Error("Le rapport delta/phi' sur l'about du talon doit être compris entre 0 et 1 (-).");
+  positifOuNul(d.hAval ?? 0, 'La hauteur des terres devant le mur', 'm');
+  if (d.fondation.sigmaRd !== undefined) positif(d.fondation.sigmaRd, 'La résistance sigma_R,d', 'kPa');
+  for (const t of d.chargesTete ?? []) {
+    if (![t.H, t.V, t.M].every(Number.isFinite)) throw new Error('Une charge en tête du voile doit être faite de nombres (kN/m, kN.m/m).');
+  }
   const pV = d.remblai.partKaVoile ?? partKa;
   if (!(Number.isFinite(pV) && pV >= 0 && pV <= 1)) throw new Error('La part de K_a du voile doit être comprise entre 0 et 100 %.');
   const dP = d.remblai.deltaParement ?? 0;
@@ -349,7 +393,11 @@ function blocs(d: DonneesMur) {
   const xTalon = patin + eBas + talon / 2;
   const terres = { F: d.remblai.gamma * talon * h, x: xTalon, z: es + h / 2 };
   const surcharge = { F: d.remblai.q * talon, x: xTalon, z: es + h };
-  return { B, Ht: h + es, voileRect, voileTri, semelle, terres, surcharge };
+  const hPatin = Math.max(0, (d.hAval ?? 0) - es);
+  const terresPatin = { F: d.remblai.gamma * patin * hPatin, x: patin / 2, z: es + hPatin / 2 };
+  // Tete du voile : sur l'axe de la section de tete, contre le parement arriere vertical.
+  const xTete = patin + eBas - eHaut / 2;
+  return { B, Ht: h + es, voileRect, voileTri, semelle, terres, surcharge, terresPatin, xTete };
 }
 
 /**
@@ -439,6 +487,25 @@ function pousseesBandes(d: DonneesMur, Ka: number, phi: number) {
   return res;
 }
 
+/**
+ * Poussee des terres sur l'ecran virtuel : Rankine sans cohesion ni about frottant,
+ * sinon `pressionTerres` sur deux troncons, le sol au-dessus du talon (delta = 0) et
+ * l'about de la semelle (delta saisi). c' est divise par son coefficient partiel.
+ */
+function pousseeMur(d: DonneesMur, phi: number, gC: number, Ka: number): Poussee {
+  const { h, es } = d.geometrie;
+  const Ht = h + es;
+  const p = pousseeActive(Ht, d.remblai.gamma, Ka, d.remblai.q);
+  const c = (d.remblai.c ?? 0) / gC;
+  const rA = d.remblai.deltaAbout ?? 0;
+  if (c === 0 && rA === 0) return { ...p, zG: Ht / 3, Pv: 0 };
+  const r = pressionTerres(d.remblai.gamma, phi, c, d.remblai.partKa ?? 1, [
+    { z0: 0, z1: h, rapportDelta: 0 },
+    { z0: h, z1: Ht, rapportDelta: rA },
+  ]);
+  return { ...p, P_G: r.E, zG: Ht - r.z, Pv: r.Ev };
+}
+
 /** Part d'une bande posee sur le talon : resultante et abscisse depuis le patin. */
 function bandesSurTalon(d: DonneesMur) {
   const { patin, eBas, talon } = d.geometrie;
@@ -471,8 +538,15 @@ function donneesEquilibre(d: DonneesMur, p: Poussee, mu: number, phi: number): D
     ponctuelle('semelle', 'G', b.semelle.x, b.semelle.z, 0, b.semelle.F),
     ponctuelle('terres sur le talon', 'G', b.terres.x, b.terres.z, 0, b.terres.F),
     // Vers le patin, donc vers -x.
-    ponctuelle('poussée des terres', 'G', b.B, b.Ht / 3, -p.P_G, 0),
+    ponctuelle('poussée des terres', 'G', b.B, p.zG ?? b.Ht / 3, -p.P_G, 0),
   ];
+  if ((p.Pv ?? 0) > 0) charges.push(ponctuelle('poussée des terres, composante verticale', 'G', b.B, 0, 0, p.Pv ?? 0));
+  if (b.terresPatin.F > 0) charges.push(ponctuelle('terres sur le patin', 'G', b.terresPatin.x, b.terresPatin.z, 0, b.terresPatin.F));
+  (d.chargesTete ?? []).forEach((t, i) => {
+    if (t.H !== 0 || t.V !== 0) charges.push(ponctuelle(`charge en tête ${i + 1}`, t.nature, b.xTete, b.Ht, -t.H, t.V));
+    // Un moment qui fait basculer vers le patin tourne dans le sens trigonometrique.
+    if (t.M !== 0) charges.push({ type: 'moment', id: `moment en tête ${i + 1}`, nature: t.nature, M: t.M });
+  });
   if (b.voileTri.F > 0) charges.push(ponctuelle('fruit du voile', 'G', b.voileTri.x, b.voileTri.z, 0, b.voileTri.F));
   if (b.surcharge.F > 0) {
     charges.push(ponctuelle('surcharge sur le talon', 'Q', b.surcharge.x, b.surcharge.z, 0, b.surcharge.F));
@@ -653,7 +727,10 @@ function calculerCombinaison(d: DonneesMur, c: Combinaison, ctx: ContexteSection
   const q = d.remblai.q;
   const phi_d = phiCalcul(d.remblai.phi, c.sol.gPhi.valeur);
   const Ka = coefficientPoussee(phi_d, d.remblai.partKa);
-  const poussee = pousseeActive(b.Ht, gamma, Ka, q);
+  const poussee = pousseeMur(d, phi_d, c.sol.gC.valeur, Ka);
+  const zG = poussee.zG ?? b.Ht / 3;
+  const Pv = poussee.Pv ?? 0;
+  const tetes = d.chargesTete ?? [];
 
   // Glissement : moteur d'equilibre, EN 1997-1 §6.5.3(8) ou EN 1997-3 (5.16).
   // delta_d divise comme phi'.
@@ -676,14 +753,23 @@ function calculerCombinaison(d: DonneesMur, c: Combinaison, ctx: ContexteSection
   const gQ = c.geotechnique.gQ_dst.valeur;
   const facteur = (nature: 'G' | 'Q'): number => (nature === 'G' ? gG : gQ);
   const pb = pousseesBandes(d, Ka, phi_d);
-  const H_d = gG * poussee.P_G + gQ * poussee.P_Q + pb.reduce((s, x) => s + facteur(x.nature) * x.P, 0);
-  const M_H = (gG * poussee.P_G * b.Ht) / 3 + (gQ * poussee.P_Q * b.Ht) / 2 + pb.reduce((s, x) => s + facteur(x.nature) * x.P * x.z, 0);
-  // DA2* : memes poussees, caracteristiques.
-  const H_k = poussee.P_G + poussee.P_Q + pb.reduce((s, x) => s + x.P, 0);
-  const M_Hk = (poussee.P_G * b.Ht) / 3 + (poussee.P_Q * b.Ht) / 2 + pb.reduce((s, x) => s + x.P * x.z, 0);
+  // Poussees et charges horizontales en tete, toujours defavorables ; E_av, de meme
+  // source que la poussee, la suit, et son moment autour du milieu va vers le talon.
+  const milieuB = b.B / 2;
+  const H_d =
+    gG * poussee.P_G + gQ * poussee.P_Q + pb.reduce((s, x) => s + facteur(x.nature) * x.P, 0) + tetes.reduce((s, t) => s + facteur(t.nature) * t.H, 0);
+  const M_H =
+    gG * (poussee.P_G * zG + Pv * (milieuB - b.B)) +
+    (gQ * poussee.P_Q * b.Ht) / 2 +
+    pb.reduce((s, x) => s + facteur(x.nature) * x.P * x.z, 0) +
+    tetes.reduce((s, t) => s + facteur(t.nature) * (t.H * b.Ht + t.M), 0);
+  // DA2* : memes actions, caracteristiques.
+  const H_k = poussee.P_G + poussee.P_Q + pb.reduce((s, x) => s + x.P, 0) + tetes.reduce((s, t) => s + t.H, 0);
+  const M_Hk =
+    poussee.P_G * zG + Pv * (milieuB - b.B) + (poussee.P_Q * b.Ht) / 2 + pb.reduce((s, x) => s + x.P * x.z, 0) + tetes.reduce((s, t) => s + t.H * b.Ht + t.M, 0);
 
   const pousseesCalcul: ResultatCombinaison['pousseesCalcul'] = [
-    { origine: 'poussée des terres', nature: 'G', F: gG * poussee.P_G, z: b.Ht / 3 },
+    { origine: 'poussée des terres', nature: 'G', F: gG * poussee.P_G, z: zG },
     ...(q > 0 ? [{ origine: 'poussée de la surcharge', nature: 'Q' as const, F: gQ * poussee.P_Q, z: b.Ht / 2 }] : []),
     ...pb.map((x) => ({ origine: `poussée de la bande ${x.indice + 1}`, nature: x.nature, F: facteur(x.nature) * x.P, z: x.z })),
   ];
@@ -696,7 +782,11 @@ function calculerCombinaison(d: DonneesMur, c: Combinaison, ctx: ContexteSection
   // parement arriere, reduit le moment de E_av e_bas / 2.
   const rapportDelta = d.remblai.deltaParement ?? 0;
   const Kp = coefficientParement(phi_d, rapportDelta, d.remblai.partKaVoile ?? d.remblai.partKa);
-  const pousseesVoile: { F: number; z: number }[] = [{ F: (gG * Kp * gamma * h * h) / 2, z: es + h / 3 }];
+  const partVoile = d.remblai.partKaVoile ?? d.remblai.partKa ?? 1;
+  const cVoile = (d.remblai.c ?? 0) / c.sol.gC.valeur;
+  const terresVoile =
+    cVoile > 0 ? pressionTerres(gamma, phi_d, cVoile, partVoile, [{ z0: 0, z1: h, rapportDelta }]) : { E: (Kp * gamma * h * h) / 2, z: (2 * h) / 3 };
+  const pousseesVoile: { F: number; z: number }[] = [{ F: gG * terresVoile.E, z: es + h - terresVoile.z }];
   if (q > 0) pousseesVoile.push({ F: gQ * Kp * q * h, z: es + h / 2 });
   // Le voile est l'ecran reel : la bande entiere se diffuse depuis son parement.
   for (const x of d.remblai.charges ?? []) {
@@ -704,10 +794,13 @@ function calculerCombinaison(d: DonneesMur, c: Combinaison, ctx: ContexteSection
     if (!p) continue;
     pousseesVoile.push({ F: facteur(x.nature) * x.q * p.P, z: es + h - (p.z1 + p.z2) / 2 });
   }
-  const V_v = pousseesVoile.reduce((s, x) => s + x.F, 0);
-  const E_av = V_v * Math.tan(rapportDelta * phi_d);
-  const M_v = pousseesVoile.reduce((s, x) => s + x.F * (x.z - es), 0) - (E_av * eBas) / 2;
-  const N_v = c.structure.gG_stb.valeur * (b.voileRect.F + b.voileTri.F) + E_av;
+  const E_ah = pousseesVoile.reduce((s, x) => s + x.F, 0);
+  const E_av = E_ah * Math.tan(rapportDelta * phi_d);
+  // Charges en tete : defavorables pour la flexion, verticales favorables pour N.
+  const fStb = (n: 'G' | 'Q'): number => (n === 'G' ? c.structure.gG_stb.valeur : 0);
+  const V_v = E_ah + tetes.reduce((s, t) => s + facteur(t.nature) * t.H, 0);
+  const M_v = pousseesVoile.reduce((s, x) => s + x.F * (x.z - es), 0) - (E_av * eBas) / 2 + tetes.reduce((s, t) => s + facteur(t.nature) * (t.H * h + t.M), 0);
+  const N_v = c.structure.gG_stb.valeur * (b.voileRect.F + b.voileTri.F) + E_av + tetes.reduce((s, t) => s + fStb(t.nature) * t.V, 0);
   const voile = verifierSection(ctx, 'voile', c.nom, 'arriere', eBas * MM_PAR_M, As.voileArriere, As.voileAvant, N_v, M_v, V_v, As.fck, As.fyk);
 
   const cas: CasBase[] = [];
@@ -724,12 +817,21 @@ function calculerCombinaison(d: DonneesMur, c: Combinaison, ctx: ContexteSection
       const fq = surchargeSurTalon ? gQ : 0;
       const surTalon = bandesSurTalon(d).map((x) => ({ ...x, f: x.nature === 'G' ? fs : fq }));
       const beton = [b.voileRect, b.voileTri, b.semelle];
-      const V = fc * beton.reduce((s, x) => s + x.F, 0) + fs * b.terres.F + fq * b.surcharge.F + surTalon.reduce((s, x) => s + x.f * x.F, 0);
+      // Verticales en tete : G comme le beton, Q seulement dans les cas « surcharge ».
+      const fTete = (n: 'G' | 'Q'): number => (n === 'G' ? fc : fq);
+      const V =
+        fc * beton.reduce((s, x) => s + x.F, 0) +
+        fs * (b.terres.F + b.terresPatin.F) +
+        fq * b.surcharge.F +
+        surTalon.reduce((s, x) => s + x.f * x.F, 0) +
+        gG * Pv +
+        tetes.reduce((s, t) => s + fTete(t.nature) * t.V, 0);
       const M =
         fc * beton.reduce((s, x) => s + x.F * (milieu - x.x), 0) +
-        fs * b.terres.F * (milieu - b.terres.x) +
+        fs * (b.terres.F * (milieu - b.terres.x) + b.terresPatin.F * (milieu - b.terresPatin.x)) +
         fq * b.surcharge.F * (milieu - b.surcharge.x) +
         surTalon.reduce((s, x) => s + x.f * x.F * (milieu - x.x), 0) +
+        tetes.reduce((s, t) => s + fTete(t.nature) * t.V * (milieu - b.xTete), 0) +
         M_H;
       const e = M / V;
       const nom = `${c.nom}, verticales ${verticales}${surchargeSurTalon ? ', surcharge sur le talon' : ''}`;
@@ -740,12 +842,19 @@ function calculerCombinaison(d: DonneesMur, c: Combinaison, ctx: ContexteSection
       if (c.effetsCaracteristiques) {
         const qT = surchargeSurTalon ? 1 : 0;
         const surTalonK = bandesSurTalon(d).map((x) => ({ ...x, f: x.nature === 'G' ? 1 : qT }));
-        const poidsK = [b.voileRect, b.voileTri, b.semelle, b.terres];
-        const Vk = poidsK.reduce((s, x) => s + x.F, 0) + qT * b.surcharge.F + surTalonK.reduce((s, x) => s + x.f * x.F, 0);
+        const poidsK = [b.voileRect, b.voileTri, b.semelle, b.terres, b.terresPatin];
+        const tK = (n: 'G' | 'Q'): number => (n === 'G' ? 1 : qT);
+        const Vk =
+          poidsK.reduce((s, x) => s + x.F, 0) +
+          qT * b.surcharge.F +
+          surTalonK.reduce((s, x) => s + x.f * x.F, 0) +
+          Pv +
+          tetes.reduce((s, t) => s + tK(t.nature) * t.V, 0);
         const Mk =
           poidsK.reduce((s, x) => s + x.F * (milieu - x.x), 0) +
           qT * b.surcharge.F * (milieu - b.surcharge.x) +
           surTalonK.reduce((s, x) => s + x.f * x.F * (milieu - x.x), 0) +
+          tetes.reduce((s, t) => s + tK(t.nature) * t.V * (milieu - b.xTete), 0) +
           M_Hk;
         caracteristique = { V: Vk, H: H_k, M: Mk, e: Mk / Vk };
       }
@@ -764,7 +873,13 @@ function calculerCombinaison(d: DonneesMur, c: Combinaison, ctx: ContexteSection
         }
       }
       const taux = R_d > 0 ? V / R_d : Infinity;
-      cas.push({ nom, verticales, surchargeSurTalon, V, H: H_d, M, e, Bp, sol, ...(caracteristique ? { caracteristique } : {}), R_d, taux });
+      const sigmaEd = d.fondation.sigmaRd !== undefined ? (Bp > 0 ? V / Bp : Infinity) : undefined;
+      cas.push({
+        nom, verticales, surchargeSurTalon, V, H: H_d, M, e, Bp, sol,
+        ...(caracteristique ? { caracteristique } : {}),
+        ...(sigmaEd !== undefined ? { sigmaEd } : {}),
+        R_d, taux,
+      });
 
       // Sections : contrainte lineaire de ce cas. Si la resultante de calcul sort
       // de la base, l'etat n'existe pas : la portance est deja refusee.
@@ -775,10 +890,12 @@ function calculerCombinaison(d: DonneesMur, c: Combinaison, ctx: ContexteSection
       // Patin : reaction du sol moins poids de la semelle, console au nu du voile.
       const wC = fc * d.gammaBeton * es;
       const rp = integrerPression(pression, 0, patin, patin, coupes);
-      const V_p = rp.F - wC * patin;
+      // Terres sur le patin : meme coefficient que les terres du talon.
+      const wP = wC + fs * gamma * Math.max(0, (d.hAval ?? 0) - es);
+      const V_p = rp.F - wP * patin;
       // Frottement de base : part de H_d au prorata de la reaction, a es/2 sous l'axe.
       const frottement = (F: number): number => (d.frottementBase ? (H_d * F * es) / (2 * V) : 0);
-      const Mp = -rp.M - (wC * patin * patin) / 2 - frottement(rp.F);
+      const Mp = -rp.M - (wP * patin * patin) / 2 - frottement(rp.F);
       patinV = pireSection(
         patinV,
         Mp >= 0
@@ -806,11 +923,22 @@ function calculerCombinaison(d: DonneesMur, c: Combinaison, ctx: ContexteSection
   }
 
   const portance = cas.reduce((x, y) => (y.taux > x.taux ? y : x));
+  const sigmaRd = d.fondation.sigmaRd;
+  let contrainte: ResultatCombinaison['contrainte'];
+  if (sigmaRd !== undefined) {
+    const pire = cas.reduce((x, y) => ((y.sigmaEd ?? 0) > (x.sigmaEd ?? 0) ? y : x));
+    const sigmaEd = pire.sigmaEd ?? Infinity;
+    contrainte = { nom: pire.nom, sigmaEd, sigmaRd, taux: sigmaEd / sigmaRd };
+  }
   if (!patinV || !talonV) {
     // Aucun cas n'a de resultante dans la base : les sections ne sont pas calculables.
     throw new Error('La résultante sort de la base dans tous les cas : les sections ne sont pas calculables, revoir la géométrie.');
   }
-  return { nom: c.nom, poussee, phi_d: (phi_d * 180) / Math.PI, mu_d, pousseesCalcul, glissement, cas, portance, voile, patin: patinV, talon: talonV };
+  return {
+    nom: c.nom, poussee, phi_d: (phi_d * 180) / Math.PI, mu_d, pousseesCalcul, glissement, cas, portance,
+    ...(contrainte ? { contrainte } : {}),
+    voile, patin: patinV, talon: talonV,
+  };
 }
 
 function nombreAffiche(valeur: number): string {
@@ -850,13 +978,13 @@ export function verifierMur(d: DonneesMur, profil: ProfilMur): ResultatMur {
   // EQU : jeu propre, phi' divise par son gamma de A.2. Pas de portance ici.
   const phiE = phiCalcul(d.remblai.phi, profil.EQU.sol.gPhi.valeur);
   const KaE = coefficientPoussee(phiE, d.remblai.partKa);
-  const pE = pousseeActive(b.Ht, d.remblai.gamma, KaE, d.remblai.q);
+  const pE = pousseeMur(d, phiE, profil.EQU.sol.gC.valeur, KaE);
   const eqE = verifierEquilibre(donneesEquilibre(d, pE, 0, phiE), profilPour(profil.EQU.actions));
   const pivot = eqE.renversement[0];
 
   // Excentricite : toutes actions caracteristiques, surcharge comprise.
   const KaK = coefficientPoussee(phiCalcul(d.remblai.phi, 1), d.remblai.partKa);
-  const pK = pousseeActive(b.Ht, d.remblai.gamma, KaK, d.remblai.q);
+  const pK = pousseeMur(d, phiCalcul(d.remblai.phi, 1), 1, KaK);
   const eqK = verifierEquilibre(donneesEquilibre(d, pK, 0, phiCalcul(d.remblai.phi, 1)), profilPour(profil.EQU.actions)).excentricite;
   if (!eqK) throw new Error('Aucun effort normal sur la base : vérifier les poids saisis.');
   const excentricite = { e: eqK.e, limite: b.B / 3, taux: eqK.e / (b.B / 3), noyauCentral: eqK.noyauCentral };
@@ -916,7 +1044,7 @@ export function verifierMur2e(d: DonneesMur2e, profil: Profil2e): ResultatMur {
   // Basculement : phi' representatif, VC2(a) et VC2(b), le moins favorable.
   const phiRep = phiCalcul(d.remblai.phi, 1);
   const Ka = coefficientPoussee(phiRep, d.remblai.partKa);
-  const pK = pousseeActive(b.Ht, d.remblai.gamma, Ka, d.remblai.q);
+  const pK = pousseeMur(m, phiRep, 1, Ka);
   const kF = profil.kF[d.consequences];
   const gQ = kF.valeur * profil.gQ.valeur;
   const vc2 = (cas: string, gG: number, gTerres: number) => {
@@ -936,13 +1064,21 @@ export function verifierMur2e(d: DonneesMur2e, profil: Profil2e): ResultatMur {
 
   // Excentricite, tableau 5.3 : permanentes seules, puis avec la variable.
   const milieu = b.B / 2;
-  const poids = [b.voileRect, b.voileTri, b.semelle, b.terres, ...bandesSurTalon(m).filter((x) => x.nature === 'G')];
+  const tetesG = (d.chargesTete ?? []).filter((t) => t.nature === 'G');
+  const tetesQ = (d.chargesTete ?? []).filter((t) => t.nature === 'Q');
+  const poids = [
+    b.voileRect, b.voileTri, b.semelle, b.terres, b.terresPatin,
+    ...bandesSurTalon(m).filter((x) => x.nature === 'G'),
+    ...tetesG.map((t) => ({ F: t.V, x: b.xTete })),
+    { F: pK.Pv ?? 0, x: b.B },
+  ];
   const pb = pousseesBandes(m, Ka, phiRep);
   const momentBandes = (n: 'G' | 'Q') => pb.filter((x) => x.nature === n).reduce((s, x) => s + x.P * x.z, 0);
+  const momentTetes = (l: ChargeTete[]) => l.reduce((s, t) => s + t.H * b.Ht + t.M, 0);
   const V0 = poids.reduce((s, x) => s + x.F, 0);
   const M0 = poids.reduce((s, x) => s + x.F * (milieu - x.x), 0);
-  const eG = (M0 + (pK.P_G * b.Ht) / 3 + momentBandes('G')) / V0;
-  const eGQ = eG + ((pK.P_Q * b.Ht) / 2 + momentBandes('Q')) / V0;
+  const eG = (M0 + pK.P_G * (pK.zG ?? b.Ht / 3) + momentBandes('G') + momentTetes(tetesG)) / V0;
+  const eGQ = eG + ((pK.P_Q * b.Ht) / 2 + momentBandes('Q') + momentTetes(tetesQ)) / V0;
   const tauxG = Math.abs(eG) / (b.B / 6);
   const tauxGQ = Math.abs(eGQ) / (b.B / 3);
   const excentricite =
@@ -985,6 +1121,7 @@ function conclure(
     ...res.flatMap((r): [string, number][] => [
       [`glissement, ${r.nom}`, r.glissement.taux],
       [`portance, ${r.nom}`, r.portance.taux],
+      ...(r.contrainte ? [[`contrainte sous la base, ${r.nom}`, r.contrainte.taux] as [string, number]] : []),
     ]),
   ];
   const lignesSec: [string, number][] = res.flatMap((r) =>
@@ -1008,7 +1145,7 @@ function conclure(
     generation,
     B: b.B,
     Ht: b.Ht,
-    poids: { voile: b.voileRect.F + b.voileTri.F, semelle: b.semelle.F, terresTalon: b.terres.F, surchargeTalon: b.surcharge.F },
+    poids: { voile: b.voileRect.F + b.voileTri.F, semelle: b.semelle.F, terresTalon: b.terres.F, surchargeTalon: b.surcharge.F, terresPatin: b.terresPatin.F },
     renversement,
     excentricite,
     combinaisons: res,
