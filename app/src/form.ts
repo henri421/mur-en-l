@@ -24,6 +24,7 @@ export type Approche1 = 'DA1' | 'DA2' | 'DA2*' | 'DA3';
 export type Approche2 = 'a+b' | 'c' | 'd';
 export type ClasseConsequences = 'CC1' | 'CC2' | 'CC3';
 export type ModePortance = 'annexeD' | 'saisie';
+export type MethodeBandes = 'diffusion' | 'din4085';
 
 /** Armature saisie en barres : diametre et espacement, convertis par `aireParMetre`. */
 export interface ArmatureSaisie {
@@ -70,8 +71,12 @@ export interface Saisie {
   q: string;
   /** Part de K_a en %, le reste en K_0. */
   partKa: string;
+  /** Part de K_a pour le voile, en % ; vide : la meme que `partKa`. */
+  partKaVoile: string;
   /** delta / phi' sur le parement du voile. */
   deltaParement: string;
+  /** Methode de poussee des charges en bande. */
+  methodeBandes: MethodeBandes;
   bandes: BandeSaisie[];
   phiBase: string;
   deltaSurPhi: string;
@@ -114,7 +119,9 @@ export function saisieParDefaut(): Saisie {
     phi: '30',
     q: '10',
     partKa: '100',
+    partKaVoile: '',
     deltaParement: '0',
+    methodeBandes: 'diffusion',
     bandes: [],
     phiBase: '30',
     deltaSurPhi: '1',
@@ -206,6 +213,7 @@ export function lireSaisie(s: Saisie): Lecture {
     const phi = nb(s.phi, "φ'_k");
     const q = nb(s.q, 'q');
     const partKa = nb(s.partKa, 'K_a') / 100;
+    const partKaVoile = s.partKaVoile.trim() === '' ? undefined : nb(s.partKaVoile, champ('K_a du voile', 'K_a of the stem')) / 100;
     const deltaParement = nb(s.deltaParement, "δ/φ'");
     const charges = s.bandes.map((b, i) => {
       const nom = champ(`bande ${i + 1}`, `strip ${i + 1}`);
@@ -259,7 +267,7 @@ export function lireSaisie(s: Saisie): Lecture {
       frottementBase: s.frottementBase,
       geometrie,
       gammaBeton,
-      remblai: { gamma, phi, q, partKa, deltaParement, charges },
+      remblai: { gamma, phi, q, partKa, ...(partKaVoile === undefined ? {} : { partKaVoile }), deltaParement, methodeBandes: s.methodeBandes, charges },
       fondation,
       armatures,
     };
@@ -383,7 +391,9 @@ export function relire(contenu: string): Saisie {
     phi: texteOu(brut.phi, d.phi),
     q: texteOu(brut.q, d.q),
     partKa: texteOu(brut.partKa, d.partKa),
+    partKaVoile: texteOu(brut.partKaVoile, d.partKaVoile),
     deltaParement: texteOu(brut.deltaParement, d.deltaParement),
+    methodeBandes: choixOu(brut.methodeBandes, ['diffusion', 'din4085'] as const, d.methodeBandes),
     bandes,
     phiBase: texteOu(brut.phiBase, d.phiBase),
     deltaSurPhi: texteOu(brut.deltaSurPhi, d.deltaSurPhi),

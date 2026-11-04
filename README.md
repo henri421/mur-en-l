@@ -11,7 +11,7 @@ Page publiée : <https://henri421.github.io/mur-en-l/> (en anglais : `/en/`).
 > défaut ; chaque coefficient partiel se modifie à l'écran, ce qui permet d'appliquer une annexe
 > nationale, et la note liste les valeurs changées. La 2ᵉ génération n'est applicable qu'une fois son
 > annexe nationale publiée. Les cas de `docs/validation/cas-reference.md` sont calculés à la main ;
-> une première comparaison avec Frilo WSM+ est dans `docs/validation/frilo-mur-a.md`. La
+> deux comparaisons, avec Frilo WSM+ et mb BauStatik, sont dans `docs/validation/`. La
 > vérification finale incombe à l'ingénieur du projet.
 
 ## Ce que l'outil rend
@@ -57,6 +57,12 @@ Page publiée : <https://henri421.github.io/mur-en-l/> (en anglais : `/en/`).
 - **Bloc du talon**, en option : le talon est isolé avec les terres qu'il porte ; la poussée sur
   l'écran virtuel et la réaction du voile entrent dans son moment, E_av dans son effort tranchant.
   Par défaut, console sous poids et réaction du sol, plus sûre.
+- **Charges en bande, DIN 4085**, en option : seule la part de la bande comprise dans le coin de
+  rupture pousse, ΔE_h = K tan ϑ q b', répartie en rectangle entre z₁ = a tan φ′ et
+  z₂ = (a + b′) tan ϑ. Vérifiée sur le rapport MB (`docs/validation/mb-mur-type1.md`). Au repos,
+  l'outil garde l'angle ϑ de la poussée active.
+- **Part de K_a du voile**, en option : le voile peut être calculé au repos pendant que la stabilité
+  externe reste en poussée active, comme le proposent Frilo et MB.
 - **Frottement de base**, en option : réparti comme la pression, avec un bras de demi-épaisseur ;
   il réduit les moments du patin et du talon.
 

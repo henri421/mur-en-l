@@ -153,6 +153,10 @@
               <input type="text" inputmode="decimal" data-champ="partKa" />
             </label>
             <label>
+              <span>Share of K<sub>a</sub> for the stem (%), 0: stem at rest</span>
+              <input type="text" inputmode="decimal" data-champ="partKaVoile" placeholder="as above" />
+            </label>
+            <label>
               <span>δ / φ′ on the stem back face (0: Rankine; 2/3: formed concrete)</span>
               <input type="text" inputmode="decimal" data-champ="deltaParement" />
             </label>
@@ -160,6 +164,13 @@
 
           <fieldset>
             <legend>Strip loads</legend>
+            <label>
+              <span>Pressure method</span>
+              <select data-champ="methodeBandes">
+                <option value="diffusion">Spreading (K q between the two lines)</option>
+                <option value="din4085">DIN 4085 (part inside the failure wedge)</option>
+              </select>
+            </label>
             <div class="defilement">
               <table class="bandes">
                 <thead>

@@ -87,12 +87,26 @@ export interface Remblai {
   /** Part de K_a dans le coefficient de pression, de 0 a 1, le reste en K_0. 1 par defaut. */
   partKa?: number;
   /**
+   * Part de K_a pour la poussee sur le parement du voile (voile, et reaction du voile
+   * dans le bloc du talon), si elle differe : 0 pour un voile calcule au repos, comme
+   * le font Frilo et MB en option. `partKa` par defaut.
+   */
+  partKaVoile?: number;
+  /**
    * delta / phi' sur le parement arriere du voile, pour le calcul du voile seul
    * (EN 1997-1 §9.5.1(6)) : 0 par defaut (Rankine), 2/3 pour un beton coffre.
    * L'ecran virtuel garde delta = 0.
    */
   deltaParement?: number;
+  /**
+   * Poussee des charges en bande : 'diffusion' (defaut), pression K q entre les deux
+   * droites de diffusion ; 'din4085', DIN 4085:2017, seule la part de la bande
+   * comprise dans le coin de rupture pousse, avec Delta E_h = K tan(theta) q b'.
+   */
+  methodeBandes?: MethodeBandes;
 }
+
+export type MethodeBandes = 'diffusion' | 'din4085';
 
 /** Charge repartie sur une bande de la surface du remblai, parallele au mur. */
 export interface ChargeBande {
@@ -293,6 +307,11 @@ function verifierDonnees(d: DonneesMur): void {
   positifOuNul(d.remblai.q, 'La surcharge', 'kPa');
   const partKa = d.remblai.partKa ?? 1;
   if (!(Number.isFinite(partKa) && partKa >= 0 && partKa <= 1)) throw new Error('La part de K_a doit être comprise entre 0 et 100 %.');
+  if (d.remblai.methodeBandes !== undefined && !['diffusion', 'din4085'].includes(d.remblai.methodeBandes)) {
+    throw new Error('Méthode des charges en bande inconnue (-).');
+  }
+  const pV = d.remblai.partKaVoile ?? partKa;
+  if (!(Number.isFinite(pV) && pV >= 0 && pV <= 1)) throw new Error('La part de K_a du voile doit être comprise entre 0 et 100 %.');
   const dP = d.remblai.deltaParement ?? 0;
   if (!(Number.isFinite(dP) && dP >= 0 && dP <= 1)) throw new Error("Le rapport delta/phi' sur le parement doit être compris entre 0 et 1 (-).");
   for (const c of d.remblai.charges ?? []) {
@@ -349,6 +368,63 @@ export function projectionBande(a: number, largeur: number, phi: number, H: numb
   return z1 < H && z2 > z1 ? { z1, z2 } : null;
 }
 
+/**
+ * Angle de rupture theta du coin de Coulomb, ecran vertical, terre-plein horizontal,
+ * frottement delta sur l'ecran : maximum de cot(theta) sin(theta - phi) / cos(theta - phi - delta).
+ * Pour delta = 0, theta = 45 + phi/2. Angles en radians.
+ */
+export function angleRupture(phi: number, delta = 0): number {
+  const f = (t: number): number => (Math.sin(t - phi) / Math.cos(t - phi - delta)) / Math.tan(t);
+  // Section doree sur ]phi ; 90[ : f y est unimodale.
+  let a = phi + 1e-9;
+  let b = Math.PI / 2 - 1e-9;
+  const r = (Math.sqrt(5) - 1) / 2;
+  for (let i = 0; i < 100; i++) {
+    const c = b - r * (b - a);
+    const e = a + r * (b - a);
+    if (f(c) > f(e)) b = e;
+    else a = c;
+  }
+  return (a + b) / 2;
+}
+
+/**
+ * Poussee horizontale d'une bande de largeur `largeur` dont le bord proche est a `a`
+ * de l'ecran (m), par unite d'intensite (kN/m par kPa), avec la zone [z1 ; z2] ou elle
+ * s'applique, en profondeur depuis la surface (m). `K` est le coefficient horizontal
+ * de la combinaison, `H` la hauteur de l'ecran, angles en radians. Null si la bande
+ * ne pousse pas l'ecran.
+ *
+ *  - 'diffusion' : pression K q uniforme entre z1 = a tan phi et
+ *    z2 = (a + b) tan(45 + phi/2), bornee a H. Methode courante, hors Eurocode.
+ *  - 'din4085' : DIN 4085:2017, comme l'EAB (EB 7) et l'EAU (E 220) pour les bornes :
+ *    seule la part b' de la bande situee dans le coin de rupture, jusqu'a H cot(theta)
+ *    de l'ecran, pousse ; Delta E_h = K tan(theta) q b', repartie uniformement entre
+ *    z1 = a tan phi et z2 = (a + b') tan(theta). Choix de l'outil : repartition
+ *    rectangulaire, la DIN 4085 admettant aussi un trapeze ; K tan(theta) est mis a
+ *    l'echelle de K quand le mur est calcule plus pres du repos.
+ */
+export function pousseeBande(
+  a: number,
+  largeur: number,
+  phi: number,
+  H: number,
+  K: number,
+  methode: MethodeBandes = 'diffusion',
+  delta = 0,
+): { P: number; z1: number; z2: number } | null {
+  if (methode === 'diffusion') {
+    const p = projectionBande(a, largeur, phi, H);
+    return p ? { P: K * (p.z2 - p.z1), ...p } : null;
+  }
+  const t = Math.tan(angleRupture(phi, delta));
+  const bEff = Math.min(a + largeur, H / t) - a;
+  if (bEff <= 1e-12) return null;
+  const z1 = a * Math.tan(phi);
+  const z2 = Math.min((a + bEff) * t, H);
+  return z2 > z1 ? { P: K * t * bEff, z1, z2 } : null;
+}
+
 /** Part d'une bande qui passe derriere l'ecran virtuel, et sa poussee caracteristique. */
 function pousseesBandes(d: DonneesMur, Ka: number, phi: number) {
   const Ht = d.geometrie.h + d.geometrie.es;
@@ -357,8 +433,8 @@ function pousseesBandes(d: DonneesMur, Ka: number, phi: number) {
     const loin = c.distance + c.largeur - d.geometrie.talon;
     if (loin <= 0) return;
     const a = Math.max(0, c.distance - d.geometrie.talon);
-    const p = projectionBande(a, loin - a, phi, Ht);
-    if (p) res.push({ indice, nature: c.nature, P: Ka * c.q * (p.z2 - p.z1), z: Ht - (p.z1 + p.z2) / 2 });
+    const p = pousseeBande(a, loin - a, phi, Ht, Ka, d.remblai.methodeBandes);
+    if (p) res.push({ indice, nature: c.nature, P: c.q * p.P, z: Ht - (p.z1 + p.z2) / 2 });
   });
   return res;
 }
@@ -619,14 +695,14 @@ function calculerCombinaison(d: DonneesMur, c: Combinaison, ctx: ContexteSection
   // coefficient que la poussee (meme source), comprime le voile et, appliquee au
   // parement arriere, reduit le moment de E_av e_bas / 2.
   const rapportDelta = d.remblai.deltaParement ?? 0;
-  const Kp = coefficientParement(phi_d, rapportDelta, d.remblai.partKa);
+  const Kp = coefficientParement(phi_d, rapportDelta, d.remblai.partKaVoile ?? d.remblai.partKa);
   const pousseesVoile: { F: number; z: number }[] = [{ F: (gG * Kp * gamma * h * h) / 2, z: es + h / 3 }];
   if (q > 0) pousseesVoile.push({ F: gQ * Kp * q * h, z: es + h / 2 });
   // Le voile est l'ecran reel : la bande entiere se diffuse depuis son parement.
   for (const x of d.remblai.charges ?? []) {
-    const p = projectionBande(x.distance, x.largeur, phi_d, h);
+    const p = pousseeBande(x.distance, x.largeur, phi_d, h, Kp, d.remblai.methodeBandes, rapportDelta * phi_d);
     if (!p) continue;
-    pousseesVoile.push({ F: facteur(x.nature) * Kp * x.q * (p.z2 - p.z1), z: es + h - (p.z1 + p.z2) / 2 });
+    pousseesVoile.push({ F: facteur(x.nature) * x.q * p.P, z: es + h - (p.z1 + p.z2) / 2 });
   }
   const V_v = pousseesVoile.reduce((s, x) => s + x.F, 0);
   const E_av = V_v * Math.tan(rapportDelta * phi_d);

@@ -21,7 +21,7 @@ const MATERIAUX = new Set(['f_ck', 'f_yk', 'gamma_c', 'D_lower', 'gamma', "phi'"
 const HYPOTHESES = new Set([
   'génération', 'generation', 'approche', 'approach', 'classe', 'class', 'dimensions', 'profondeur', 'depth',
   'source unique', 'single source', 'coefficients', 'factors',
-  'bloc du talon', 'heel block', 'frottement de base', 'base friction', "delta_p/phi'",
+  'bloc du talon', 'heel block', 'méthode des bandes', 'strip method', 'frottement de base', 'base friction', "delta_p/phi'",
 ]);
 
 type Section = 'geometrie' | 'materiaux' | 'hypotheses' | 'charges';
@@ -30,7 +30,7 @@ type Section = 'geometrie' | 'materiaux' | 'hypotheses' | 'charges';
 function sectionDe(symbole: string): Section {
   if (MATERIAUX.has(symbole)) return 'materiaux';
   if (HYPOTHESES.has(symbole) || estSymboleCoefficient(symbole)) return 'hypotheses';
-  if (/^(bande|strip) /.test(symbole) || symbole === 'q' || symbole === 'K_a') return 'charges';
+  if (/^(bande|strip) /.test(symbole) || symbole === 'q' || symbole === 'K_a' || symbole === 'K_a,voile') return 'charges';
   return 'geometrie';
 }
 

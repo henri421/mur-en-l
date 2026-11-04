@@ -80,6 +80,12 @@ glissement, portance et voile à moins de 3 % de Frilo, bandes mises à part.
 
 ### L2. Actions (M)
 
+État au 2026-11-04 : point 3 fait pour la DIN 4085 en répartition rectangulaire, d'après le rapport
+MB (`docs/validation/mb-mur-type1.md`) ; restent le trapèze et l'angle ϑ₀ au repos, qui demandent le
+texte de la DIN 4085. Part de K_a séparée pour le voile, faite. Le banc MB ajoute au lot L4 la
+cohésion du remblai avec pression minimale (DIN 4085, K_min) : c'est le premier écart restant sur la
+stabilité externe.
+
 1. **Actions variables multiples** : catégorie (EN 1990 tableau A1.1), ψ₀, ψ₁, ψ₂ ; combinaisons
    6.10 avec action dominante et concomitantes, énumérées comme le fait Frilo (12 combinaisons pour
    le mur A). Fichier nouveau `src/combinaisons.ts`.

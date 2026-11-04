@@ -8,7 +8,7 @@
  */
 
 import { nombreAffiche, notationSvg } from 'aedificium-ui';
-import { contrainteSol, projectionBande } from '../../src/index';
+import { angleRupture, contrainteSol, pousseeBande } from '../../src/index';
 import type { ResultatMur } from '../../src/mur';
 import { phrase, textes } from './textes';
 
@@ -37,6 +37,7 @@ export type Calcul = {
     remblai: {
       q: number;
       charges?: readonly Bande[];
+      methodeBandes?: 'diffusion' | 'din4085';
     };
     fondation?: { portance?: { mode: string; D?: number } };
   };
@@ -490,7 +491,9 @@ export function projectionSvg(calcul: Calcul, phi: number): string {
 
   const phiRad = (phi * Math.PI) / 180;
   const tanPhi = Math.tan(phiRad);
-  const tanB = Math.tan(Math.PI / 4 + phiRad / 2);
+  const methode = calcul.donnees.remblai.methodeBandes ?? 'diffusion';
+  // Ecran virtuel sans frottement : theta = 45 + phi/2 dans les deux methodes.
+  const tanB = Math.tan(methode === 'din4085' ? angleRupture(phiRad) : Math.PI / 4 + phiRad / 2);
   if (!Number.isFinite(tanPhi) || !Number.isFinite(tanB)) return '';
 
   const maxLoin = Math.max(...retenues.map((b) => b.distance + b.largeur - g.talon));
@@ -542,7 +545,7 @@ export function projectionSvg(calcul: Calcul, phi: number): string {
       `<text class="etiquette" x="${attr((xProche + xLoin) / 2)}" y="${attr(yBande - 5)}" text-anchor="middle">b${b.numero}</text>`,
     );
 
-    const p = projectionBande(a, largeur, phiRad, H);
+    const p = pousseeBande(a, largeur, phiRad, H, 1, methode);
     if (!p || p.z1 > H + 1e-9) return;
 
     if (a > 1e-9) {
@@ -551,13 +554,16 @@ export function projectionSvg(calcul: Calcul, phi: number): string {
       );
     }
 
-    const zLoin = (a + largeur) * tanB;
+    // DIN 4085 : la droite eloignee part du bord de la part comprise dans le coin.
+    const largeurUtile = methode === 'din4085' ? Math.min(largeur, H / tanB - a) : largeur;
+    const xLoinUtile = xEcran + (a + largeurUtile) * echelle;
+    const zLoin = (a + largeurUtile) * tanB;
     const borne = zLoin > H;
-    const xFin = borne ? xLoin - (H / tanB) * echelle : xEcran;
+    const xFin = borne ? xLoinUtile - (H / tanB) * echelle : xEcran;
     const yFin = surface + (borne ? H : zLoin) * echelle;
     if (xFin >= xEcran - 1e-6) {
       morceaux.push(
-        `<line class="diffusion" data-bord="eloigne" x1="${attr(xLoin)}" y1="${attr(surface)}" x2="${attr(xFin)}" y2="${attr(yFin)}"/>`,
+        `<line class="diffusion" data-bord="eloigne" x1="${attr(xLoinUtile)}" y1="${attr(surface)}" x2="${attr(xFin)}" y2="${attr(yFin)}"/>`,
       );
     }
 
@@ -580,7 +586,7 @@ export function projectionSvg(calcul: Calcul, phi: number): string {
   });
 
   morceaux.push(
-    `<text class="legende" x="20" y="${attr(hauteur - 8)}">${tx(textes().coupe.methodeCourante)}</text>`,
+    `<text class="legende" x="20" y="${attr(hauteur - 8)}">${tx(methode === 'din4085' ? textes().coupe.methodeDin : textes().coupe.methodeCourante)}</text>`,
     `</svg>`,
   );
   return morceaux.join('');

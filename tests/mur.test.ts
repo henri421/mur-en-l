@@ -405,3 +405,28 @@ describe('delta sur le parement, bloc du talon, frottement de base (DA1-1)', () 
     expect(b.combinaisons[0].portance.taux).toBeCloseTo(a.combinaisons[0].portance.taux, 10);
   });
 });
+
+describe('charges en bande, DIN 4085 (DA1-1, Q 20 kPa a 2,6 m, large de 1 m)', () => {
+  // Ecran H_t = 3,4 m, phi = 30 : theta = 60, H cot(theta) = 1,96299 m. Bord proche a 1,0 m
+  // de l'ecran : b' = 0,96299 m. Delta E = 1/3 x tan 60 x 20 x 0,96299 = 11,1197 kN, entre
+  // z1 = 0,57735 et z2 = 3,4 m. H_d = 1,35 x 34,68 + 1,5 x 11,1197 = 63,498 kN.
+  // Voile, h = 3 : cot 60 x 3 = 1,73205 < 2,6 : la bande ne pousse pas le voile.
+  const m = mur('DA1');
+  const d: DonneesMur = { ...m, remblai: { ...m.remblai, q: 0, methodeBandes: 'din4085', charges: [{ nature: 'Q', q: 20, distance: 2.6, largeur: 1 }] } };
+  const c = verifierMur(d, profil).combinaisons[0];
+
+  it('poussee de la bande sur l ecran virtuel : 1,5 x 11,1197 kN', () => {
+    const b = c.pousseesCalcul.find((x) => x.origine === 'poussée de la bande 1');
+    expect(b?.F).toBeCloseTo(1.5 * 11.1197, 3);
+    expect(b?.z).toBeCloseTo(3.4 - (0.57735 + 3.4) / 2, 4);
+    expect(c.glissement.H_d).toBeCloseTo(63.498, 2);
+  });
+
+  it('hors du coin du voile : M_Ed du voile = terres seules, 1,35 x 27 = 36,45 kN.m', () => {
+    expect(c.voile.M_Ed).toBeCloseTo(36.45, 2);
+  });
+
+  it('refuse une methode inconnue', () => {
+    expect(() => verifierMur({ ...d, remblai: { ...d.remblai, methodeBandes: 'autre' as 'din4085' } }, profil)).toThrow(/Méthode/);
+  });
+});
