@@ -1,7 +1,7 @@
 /** T1 : la saisie, sa lecture, son enregistrement. */
 
 import { describe, expect, it } from 'vitest';
-import { aireParMetre, lireSaisie, relire, saisieParDefaut, serialiser, verifier, type Saisie } from '../../app/src/form';
+import { actionsLM1, aireParMetre, lireSaisie, relire, saisieParDefaut, serialiser, verifier, type Saisie } from '../../app/src/form';
 import { avecBandes } from './_commun';
 
 function refus(s: Saisie): string {
@@ -301,5 +301,32 @@ describe('cohesion, terres devant le mur, sigma_R,d, charges en tete', () => {
     expect(r.combinaisons.every((x) => x.contrainte !== undefined)).toBe(true);
     expect(refus({ ...saisieParDefaut(), sigmaRd: 'x' })).toMatch(/σ_R,d/);
     expect(refus({ ...saisieParDefaut(), teteGH: 'x' })).toMatch(/G, H/);
+  });
+});
+
+describe('actions variables saisies', () => {
+  it('LM1 : deux actions, bandes et surcharge rattachees, relues a l identique', () => {
+    const s: Saisie = {
+      ...avecBandes({ q: '10' }),
+      actions: actionsLM1(),
+      actionQ: 'UDL',
+      bandes: [{ nature: 'Q', action: 'TS', q: '20', distance: '2,6', largeur: '1' }],
+    };
+    const c = lue(s);
+    expect(c.donnees.actions).toEqual([
+      { id: 'TS', psi0: 0.75, gammaA1: 1.35, gammaA2: 1.15 },
+      { id: 'UDL', psi0: 0.4, gammaA1: 1.35, gammaA2: 1.15 },
+    ]);
+    expect(c.donnees.remblai.actionQ).toBe('UDL');
+    expect(c.donnees.remblai.charges?.[0].action).toBe('TS');
+    expect(verifier(c).combinaisons.map((x) => x.nom)).toEqual(['DA1-1, TS dominante', 'DA1-1, UDL dominante', 'DA1-2, TS dominante', 'DA1-2, UDL dominante']);
+    expect(relire(serialiser(s))).toEqual(s);
+  });
+
+  it('sans action decrite : rien ne change ; nom vide ou en double refuse', () => {
+    expect(lue(saisieParDefaut()).donnees.actions).toBeUndefined();
+    expect(refus({ ...saisieParDefaut(), actions: [{ nom: ' ', psi0: '1', gammaA1: '', gammaA2: '' }] })).toMatch(/nom attendu/);
+    const double = { nom: 'A', psi0: '1', gammaA1: '', gammaA2: '' };
+    expect(refus({ ...saisieParDefaut(), actions: [double, double] })).toMatch(/deux fois/);
   });
 });

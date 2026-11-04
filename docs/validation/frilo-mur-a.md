@@ -151,6 +151,30 @@ reste sur le voile et le talon vient des bandes 3 et 4. Pour le patin, l'outil g
 cas : 41,7 kN·m/m est proche des 41,0 que donne la combinaison de tranchant de Frilo, au-delà des
 36,75 que Frilo retient en flexion.
 
+## Toutes données saisies
+
+Script `frilo-mur-a/calcul-complet.ts`. Les deux actions de Frilo sont saisies comme actions
+variables, catégorie F (bandes) et catégorie C (tête de voile), ψ₀ = 0,7 ; terre sur le patin
+(0,60 m), δ = 2/3 φ′ sur le parement et l'about, DA2*, bloc du talon, frottement de base, voile en
+poussée active comme dans Frilo.
+
+| Grandeur | Frilo | Application, bandes en diffusion | Application, bandes DIN 4085 |
+| :- | -: | -: | -: |
+| Poussée des terres E_ah (kN/m) | 111,47 | 111,47 | 111,47 |
+| E_av sur l'about (kN/m) | 4,50 | 4,50 | 4,50 |
+| Renversement | 0,66 | 0,74 | 0,62 |
+| Glissement | 1,05 | 1,14 | 0,97 |
+| Portance | 1,69 | 2,17 | 1,35 |
+| Voile, M_Ed (kN·m/m) | 297,8 | 313,8 | 262,6 |
+| Talon, M_Ed (kN·m/m) | 222,3 | 234,8 | 195,1 |
+| Patin, M_Ed (kN·m/m) | 36,8 | 46,3 | 38,7 |
+
+Tout ce qui ne dépend pas des bandes coïncide avec Frilo : poussée, E_av, combinaisons avec ψ₀.
+Les bandes encadrent Frilo, qui n'applique ni la diffusion de l'outil ni la DIN 4085 de MB : sa
+bande 4 pousse alors qu'elle est hors du coin de rupture (5,91 kN/m), et son angle de rupture varie
+d'une bande à l'autre (61,2°, 60,1°, 59,1°). Sans la description de sa méthode, l'écart à Frilo
+reste de 5 à 20 % sur les grandeurs dominées par les bandes.
+
 ## Constat
 
 La chaîne de calcul de l'outil est cohérente avec Frilo là où les hypothèses coïncident (poids,
