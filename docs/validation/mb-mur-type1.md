@@ -11,10 +11,12 @@ mur A de Frilo, mais d'autres données de sol et de charges : ce n'est pas le m�
 | Grandeur | MB | Application |
 | :- | :- | :- |
 | Voile, semelle | h = 6,08 m, 0,45 m ; patin 0,60 m, talon 2,40 m, 0,40 m | idem |
-| Remblai | γ = 19,5 kN/m³, φ' = 30°, **c' = 2,5 kPa** | γ = 19,5, φ' = 30°, c' = 0 (hors périmètre) |
+| Remblai | γ = 19,5 kN/m³, φ' = 30°, c' = 2,5 kPa, δ = 2/3 φ' sur l'about | idem |
 | Sol d'assise | 0,40 m à φ' = 32,5°, puis φ' = 27,5°, c' = 20 kPa ; moyennes DIN 4017 : φ' = 28,89°, c' = 0 | glissement φ' = 32,5° ; portance φ' = 28,89°, c' = 0, D = 0,80 m |
 | Bandes | 1 : G 2 kPa sur [0 ; 2,30] ; 2 : Q 5 kPa sur [2,30 ; 4,25] ; 3 : Q 20 kPa sur [4,25 ; 7,25] ; 4 : Q 9 kPa sur [7,25 ; 14,25] | idem, méthode DIN 4085 |
-| Tête de voile | Q : 2,80 kN/m horizontal, 2,52 kN·m/m | non saisissable, retiré de MB quand c'est possible |
+| Tête de voile | Q : 2,80 kN/m horizontal, 2,52 kN·m/m | idem |
+| Terres devant le mur | 0,80 m au-dessus de la base | idem |
+| Résistance sous la base | σ_R,d = 260 kPa | idem |
 | Poussées | stabilité en poussée active ; voile au repos (K₀ = 0,5) | part de K_a 100 %, part de K_a du voile 0 % |
 | Approche | DA2* (DIN 1054) | DA2*, source unique, bloc du talon, frottement de base ; γ_φ = 1,0 en EQU, C_Rd,c γ_C = 0,15, k₁ = 0,12 |
 
@@ -49,52 +51,48 @@ l'angle de la poussée active : la règle de ϑ₀ n'est pas dans le rapport.
 
 ## Résultats
 
-Colonne « MB sans tête » : charges en tête de voile retirées à partir des efforts par action du
-rapport, pour le renversement, le glissement, la portance (DIN 4017 refaite avec les moyennes de MB)
-et le voile. Les sections du talon et du patin les gardent.
+Toutes les données de MB sont maintenant saisies dans l'application, sauf la stratification du sol
+d'assise, dont les moyennes de MB sont reprises.
 
-| Vérification | MB | MB sans tête | Application |
+| Vérification | MB | Application | Écart |
 | :- | -: | -: | -: |
-| Poussée des terres E_ah (kN/m, caractéristique) | 117,20 | 117,20 | 136,47 |
-| Renversement, e/b rapporté à 1/2 | 0,56 | 0,52 | 0,61 |
-| Glissement | 0,87 | 0,85 | 0,99 |
-| Portance | 1,83 | 1,66 | 2,51 |
-| Voile au repos, M_Ed (kN·m/m) | 570,8 | 541,5 | 533,7 |
-| Voile au repos, V_Ed (kN/m) | 262,1 | 257,9 | 256,5 |
-| Voile, V_Rd,c (kN/m) | 219,7 | | 218,5 |
-| Talon, M_Ed (kN·m/m) | 507,7 | | 465,7 |
-| Talon, V_Ed (kN/m) | 212,1 | | 217,8 |
-| Patin, M_Ed (kN·m/m) | 40,5 | | 42,3 |
-| Patin, V_Ed (kN/m) | 181,1 | | 189,2 |
+| Poussée des terres E_ah (kN/m, caractéristique) | 117,20 | 117,20 | 0 % |
+| Hauteur de E_ah depuis la base (m) | 2,09 | 2,09 | 0 % |
+| E_av sur l'about (kN/m) | 4,65 | 4,65 | 0 % |
+| Renversement, e/b rapporté à 1/2 | 0,56 | 0,57 | +2 % |
+| Glissement | 0,87 | 0,87 | 0 % |
+| Portance | 1,83 | 1,83 | 0 % |
+| Contrainte sous la base, σ_E,d (kPa) | 255,3 | 251,1 | −2 % |
+| Excentricité, 2ᵉ noyau | 0,57 | 0,56 | −2 % |
+| Voile au repos, M_Ed (kN·m/m) | 570,8 | 563,0 | −1,4 % |
+| Voile au repos, V_Ed (kN/m) | 262,1 | 260,7 | −0,5 % |
+| Voile, V_Rd,c (kN/m) | 219,7 | 218,5 | −0,5 % |
+| Talon, M_Ed (kN·m/m) | 507,7 | 490,5 | −3,4 % |
+| Talon, V_Ed (kN/m) | 212,1 | 190,8 (200,0 sans source unique) | −10 % (−6 %) |
+| Patin, M_Ed (kN·m/m) | 40,5 | 39,7 | −2 % |
+| Patin, V_Ed (kN/m) | 181,1 | 172,4 (176,7 sans source unique) | −5 % (−2 %) |
 
-Les deux calculs refusent le mur en portance.
+Les deux calculs refusent le mur en portance (1,83) et acceptent la contrainte sous la base.
 
 ## Origine des écarts
 
-**Cohésion du remblai.** C'est le premier écart de la stabilité externe. MB retranche K_ach c' = 2,89
-kPa sur toute la hauteur et borne la pression par le minimum de la DIN 4085 (K_min = 0,217) dans le
-premier mètre : 117,20 kN/m au lieu de 136,47 sans cohésion. Glissement, renversement et portance
-en sont plus sévères dans l'application, qui n'admet pas de cohésion dans le remblai.
+**Bandes.** MB prend sur l'écran un frottement moyen de 2,36° pour les bandes ; l'application garde
+δ = 0 sur le sol au-dessus du talon : 26,9 au lieu de 27,2 kN/m caractéristiques, 0,4 kN/m sur H_d.
+Au repos, MB prend ϑ₀ = 55,98° au lieu de l'angle de la poussée active : c'est le 1,4 % du voile.
 
-**Voile.** Au repos et pour les terres seules, l'application retrouve MB exactement
-(1,35 × 365,23 kN·m/m, `tests/bancs.test.ts`). Les 1,4 % restants viennent des bandes au repos
-(ϑ₀ plus faible chez MB, donc un coin plus large).
+**Talon et patin, effort tranchant.** MB combine dans les sections les terres sur le talon à 1,0 avec
+la poussée à 1,35 (combinaison 27), ce que l'option « source unique » écarte. Sans elle, l'écart
+tombe à 6 et 2 %. Le reste vient de l'angle ϑ₀ et des composantes verticales des bandes, que MB
+ajoute aux verticales.
 
-**Talon.** MB isole le talon comme le fait l'option « bloc du talon » : poussée active sur l'écran,
-pression au repos sur le voile, réaction du sol avec frottement. L'application est 8 % sous MB :
-la cohésion réduit chez MB la poussée sur l'écran, qui soulage le talon, et MB garde les charges en
-tête de voile.
+**Contrainte sous la base.** B′ = 2,158 m dans l'application contre 2,13 dans MB, qui compte aussi
+les composantes verticales des bandes dans les moments.
 
-**Patin.** 4 % d'écart, dans le sens de la sécurité : MB compte le poids de la terre sur le patin,
-que l'application ignore.
-
-**Portance.** Outre la poussée, MB compte la terre sur le patin et la composante verticale de
-poussée dans V, et calcule φ', c' et γ moyens sur la profondeur de rupture des deux couches ;
-l'application prend ces moyennes en données.
+**Sol d'assise.** MB calcule φ', c' et γ moyens sur la profondeur de rupture des couches (DIN 4017) ;
+l'application les prend en données.
 
 ## Constat
 
-Avec la méthode DIN 4085, les poussées des bandes coïncident avec MB, et le voile au repos sous les
-terres seules est identique. Les écarts restants viennent de données que l'outil ne prend pas encore :
-cohésion du remblai avec pression minimale, sol d'assise stratifié, terre sur le patin, charges en
-tête de voile, angle ϑ₀ au repos. Ils vont tous dans le sens de la sécurité.
+Toutes données saisies, l'application retrouve MB à 2 % près sur la stabilité externe, et à 3,4 %
+près sur les moments des sections. Restent à reprendre la répartition trapézoïdale et l'angle ϑ₀ de
+la DIN 4085 (texte de la norme attendu), et la moyenne des couches du sol d'assise de la DIN 4017.

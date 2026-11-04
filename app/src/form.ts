@@ -71,6 +71,20 @@ export interface Saisie {
   q: string;
   /** Part de K_a en %, le reste en K_0. */
   partKa: string;
+  /** Cohesion du remblai (kPa) et delta / phi' sur l'about du talon. */
+  cRemblai: string;
+  deltaAbout: string;
+  /** Hauteur des terres devant le mur, au-dessus de la base (m). */
+  hAval: string;
+  /** sigma_R,d sous la base (kPa) ; vide : pas de verification. */
+  sigmaRd: string;
+  /** Charges en tete du voile, permanente et variable : H, V, M. */
+  teteGH: string;
+  teteGV: string;
+  teteGM: string;
+  teteQH: string;
+  teteQV: string;
+  teteQM: string;
   /** Part de K_a pour le voile, en % ; vide : la meme que `partKa`. */
   partKaVoile: string;
   /** delta / phi' sur le parement du voile. */
@@ -120,6 +134,16 @@ export function saisieParDefaut(): Saisie {
     q: '10',
     partKa: '100',
     partKaVoile: '',
+    cRemblai: '0',
+    deltaAbout: '0',
+    hAval: '0',
+    sigmaRd: '',
+    teteGH: '0',
+    teteGV: '0',
+    teteGM: '0',
+    teteQH: '0',
+    teteQV: '0',
+    teteQM: '0',
     deltaParement: '0',
     methodeBandes: 'diffusion',
     bandes: [],
@@ -215,6 +239,19 @@ export function lireSaisie(s: Saisie): Lecture {
     const partKa = nb(s.partKa, 'K_a') / 100;
     const partKaVoile = s.partKaVoile.trim() === '' ? undefined : nb(s.partKaVoile, champ('K_a du voile', 'K_a of the stem')) / 100;
     const deltaParement = nb(s.deltaParement, "δ/φ'");
+    const cRemblai = nb(s.cRemblai, champ("c' du remblai", "c' of the backfill"));
+    const deltaAbout = nb(s.deltaAbout, champ("δ/φ' de l'about", "δ/φ' of the heel end"));
+    const hAval = nb(s.hAval, champ('hauteur aval', 'front earth height'));
+    const sigmaRd = s.sigmaRd.trim() === '' ? undefined : nb(s.sigmaRd, 'σ_R,d');
+    const tete = (nature: 'G' | 'Q', H: string, V: string, M: string) => ({
+      nature,
+      H: nb(H, `${champ('tête', 'top')} ${nature}, H`),
+      V: nb(V, `${champ('tête', 'top')} ${nature}, V`),
+      M: nb(M, `${champ('tête', 'top')} ${nature}, M`),
+    });
+    const chargesTete = [tete('G', s.teteGH, s.teteGV, s.teteGM), tete('Q', s.teteQH, s.teteQV, s.teteQM)].filter(
+      (t) => t.H !== 0 || t.V !== 0 || t.M !== 0
+    );
     const charges = s.bandes.map((b, i) => {
       const nom = champ(`bande ${i + 1}`, `strip ${i + 1}`);
       return {
@@ -237,7 +274,7 @@ export function lireSaisie(s: Saisie): Lecture {
             gamma: nb(s.gammaBase, champ("γ du sol d'assise", 'γ of the bearing soil')),
             D: nb(s.D, 'D'),
           };
-    const fondation = { phi: phiBase, deltaSurPhi, portance };
+    const fondation = { phi: phiBase, deltaSurPhi, portance, ...(sigmaRd === undefined ? {} : { sigmaRd }) };
 
     const armatures = {
       fck: nb(s.fck, 'f_ck'),
@@ -267,7 +304,12 @@ export function lireSaisie(s: Saisie): Lecture {
       frottementBase: s.frottementBase,
       geometrie,
       gammaBeton,
-      remblai: { gamma, phi, q, partKa, ...(partKaVoile === undefined ? {} : { partKaVoile }), deltaParement, methodeBandes: s.methodeBandes, charges },
+      remblai: {
+        gamma, phi, q, partKa, ...(partKaVoile === undefined ? {} : { partKaVoile }),
+        c: cRemblai, deltaAbout, deltaParement, methodeBandes: s.methodeBandes, charges,
+      },
+      hAval,
+      chargesTete,
       fondation,
       armatures,
     };
@@ -392,6 +434,16 @@ export function relire(contenu: string): Saisie {
     q: texteOu(brut.q, d.q),
     partKa: texteOu(brut.partKa, d.partKa),
     partKaVoile: texteOu(brut.partKaVoile, d.partKaVoile),
+    cRemblai: texteOu(brut.cRemblai, d.cRemblai),
+    deltaAbout: texteOu(brut.deltaAbout, d.deltaAbout),
+    hAval: texteOu(brut.hAval, d.hAval),
+    sigmaRd: texteOu(brut.sigmaRd, d.sigmaRd),
+    teteGH: texteOu(brut.teteGH, d.teteGH),
+    teteGV: texteOu(brut.teteGV, d.teteGV),
+    teteGM: texteOu(brut.teteGM, d.teteGM),
+    teteQH: texteOu(brut.teteQH, d.teteQH),
+    teteQV: texteOu(brut.teteQV, d.teteQV),
+    teteQM: texteOu(brut.teteQM, d.teteQM),
     deltaParement: texteOu(brut.deltaParement, d.deltaParement),
     methodeBandes: choixOu(brut.methodeBandes, ['diffusion', 'din4085'] as const, d.methodeBandes),
     bandes,

@@ -160,6 +160,14 @@
               <span>δ / φ′ sur le parement du voile (0 : Rankine ; 2/3 : béton coffré)</span>
               <input type="text" inputmode="decimal" data-champ="deltaParement" />
             </label>
+            <label>
+              <span>Cohésion c’ du remblai (kPa), pression minimale DIN 4085</span>
+              <input type="text" inputmode="decimal" data-champ="cRemblai" />
+            </label>
+            <label>
+              <span>δ / φ′ sur l’about du talon (0 à 1)</span>
+              <input type="text" inputmode="decimal" data-champ="deltaAbout" />
+            </label>
           </fieldset>
 
           <fieldset>
@@ -196,6 +204,17 @@
           </fieldset>
 
           <fieldset>
+            <legend>Charges en tête du voile</legend>
+            <table class="tete">
+              <thead><tr><th></th><th>H vers le patin (kN/m)</th><th>V vers le bas (kN/m)</th><th>M vers le patin (kN·m/m)</th></tr></thead>
+              <tbody>
+                <tr><th>Permanente G</th><td><input type="text" inputmode="decimal" data-champ="teteGH" aria-label="G, H" /></td><td><input type="text" inputmode="decimal" data-champ="teteGV" aria-label="G, V" /></td><td><input type="text" inputmode="decimal" data-champ="teteGM" aria-label="G, M" /></td></tr>
+                <tr><th>Variable Q</th><td><input type="text" inputmode="decimal" data-champ="teteQH" aria-label="Q, H" /></td><td><input type="text" inputmode="decimal" data-champ="teteQV" aria-label="Q, V" /></td><td><input type="text" inputmode="decimal" data-champ="teteQM" aria-label="Q, M" /></td></tr>
+              </tbody>
+            </table>
+          </fieldset>
+
+          <fieldset>
             <legend>Fondation</legend>
             <label>
               <span>Angle de frottement interne du sol d’assise φ’<sub>k</sub> (°)</span>
@@ -204,6 +223,14 @@
             <label>
               <span>Rapport δ<sub>k</sub> sur φ’<sub>k</sub></span>
               <input type="text" inputmode="decimal" data-champ="deltaSurPhi" />
+            </label>
+            <label>
+              <span>Hauteur des terres devant le mur, au-dessus de la base (m)</span>
+              <input type="text" inputmode="decimal" data-champ="hAval" />
+            </label>
+            <label>
+              <span>Résistance du terrain σ<sub>R,d</sub> (kPa), facultative</span>
+              <input type="text" inputmode="decimal" data-champ="sigmaRd" placeholder="aucune" />
             </label>
             <label>
               <span>Mode de portance</span>
@@ -289,7 +316,7 @@
             <legend>Hors périmètre</legend>
             <p class="note">
               Ne sont pas traités par cet outil la nappe phréatique, la bêche, le talus incliné,
-              la cohésion du remblai, la butée devant le patin, le calcul non drainé, les états de
+              la butée devant le patin, le calcul non drainé, les états de
               service (fissuration) et la stabilité générale du site.
             </p>
           </fieldset>

@@ -242,3 +242,12 @@ describe('coefficients partiels', () => {
     expect(r?.valeur).toBe('valeurs recommandées');
   });
 });
+
+describe('contrainte sous la base', () => {
+  it('une carte de verdict et des lignes de calcul quand sigma_R,d est saisi, rien sinon', () => {
+    const avec = calculer({ ...saisieParDefaut(), sigmaRd: '200' }).r;
+    expect(verdictsHtml(avec)).toContain('Contrainte sous la base');
+    expect(blocsResultat(avec).some((b) => b.lignes.some((l) => l.symbole === 'σ_E,d'))).toBe(true);
+    expect(verdictsHtml(calculer(saisieParDefaut()).r)).not.toContain('Contrainte sous la base');
+  });
+});

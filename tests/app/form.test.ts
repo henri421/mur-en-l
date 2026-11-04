@@ -23,7 +23,10 @@ describe('valeurs par defaut', () => {
     expect(c.donnees.approche).toBe('DA1');
     expect(c.donnees.geometrie).toEqual({ h: 3, eHaut: 0.3, eBas: 0.3, es: 0.4, patin: 0.7, talon: 1.6 });
     expect(c.donnees.gammaBeton).toBe(25);
-    expect(c.donnees.remblai).toEqual({ gamma: 18, phi: 30, q: 10, partKa: 1, deltaParement: 0, methodeBandes: 'diffusion', charges: [] });
+    expect(c.donnees.remblai).toEqual({ gamma: 18, phi: 30, q: 10, partKa: 1, c: 0, deltaAbout: 0, deltaParement: 0, methodeBandes: 'diffusion', charges: [] });
+    expect(c.donnees.hAval).toBe(0);
+    expect(c.donnees.chargesTete).toEqual([]);
+    expect(c.donnees.fondation.sigmaRd).toBeUndefined();
     expect(c.donnees.talonPrisme).toBe(false);
     expect(c.donnees.frottementBase).toBe(false);
     expect(c.donnees.fondation).toEqual({ phi: 30, deltaSurPhi: 1, portance: { mode: 'annexeD', phi: 30, c: 0, gamma: 19, D: 0.8 } });
@@ -275,5 +278,28 @@ describe('part de K_a du voile', () => {
     const b = verifier(lue({ ...saisieParDefaut(), partKaVoile: '0' }));
     expect(b.combinaisons[0].voile.M_Ed / a.combinaisons[0].voile.M_Ed).toBeGreaterThan(1.4);
     expect(b.combinaisons[0].glissement.taux).toBeCloseTo(a.combinaisons[0].glissement.taux, 10);
+  });
+});
+
+describe('cohesion, terres devant le mur, sigma_R,d, charges en tete', () => {
+  it('lus et passes au noyau ; une charge nulle n est pas transmise ; relus a l identique', () => {
+    const s: Saisie = {
+      ...saisieParDefaut(), cRemblai: '2,5', deltaAbout: '0,667', hAval: '0,8', sigmaRd: '260',
+      teteQH: '2,8', teteQM: '2,52',
+    };
+    const c = lue(s);
+    expect(c.donnees.remblai.c).toBe(2.5);
+    expect(c.donnees.remblai.deltaAbout).toBeCloseTo(0.667, 10);
+    expect(c.donnees.hAval).toBe(0.8);
+    expect(c.donnees.fondation.sigmaRd).toBe(260);
+    expect(c.donnees.chargesTete).toEqual([{ nature: 'Q', H: 2.8, V: 0, M: 2.52 }]);
+    expect(relire(serialiser(s))).toEqual(s);
+  });
+
+  it('sigma_R,d donne une verification de contrainte ; illisible, il est refuse en le nommant', () => {
+    const r = verifier(lue({ ...saisieParDefaut(), sigmaRd: '200' }));
+    expect(r.combinaisons.every((x) => x.contrainte !== undefined)).toBe(true);
+    expect(refus({ ...saisieParDefaut(), sigmaRd: 'x' })).toMatch(/σ_R,d/);
+    expect(refus({ ...saisieParDefaut(), teteGH: 'x' })).toMatch(/G, H/);
   });
 });
