@@ -160,6 +160,14 @@
               <span>δ / φ′ on the stem back face (0: Rankine; 2/3: formed concrete)</span>
               <input type="text" inputmode="decimal" data-champ="deltaParement" />
             </label>
+            <label>
+              <span>Backfill cohesion c’ (kPa), DIN 4085 minimum pressure</span>
+              <input type="text" inputmode="decimal" data-champ="cRemblai" />
+            </label>
+            <label>
+              <span>δ / φ′ on the heel end (0 to 1)</span>
+              <input type="text" inputmode="decimal" data-champ="deltaAbout" />
+            </label>
           </fieldset>
 
           <fieldset>
@@ -196,6 +204,17 @@
           </fieldset>
 
           <fieldset>
+            <legend>Stem top loads</legend>
+            <table class="tete">
+              <thead><tr><th></th><th>H toward the toe (kN/m)</th><th>V downward (kN/m)</th><th>M toward the toe (kN·m/m)</th></tr></thead>
+              <tbody>
+                <tr><th>Permanent G</th><td><input type="text" inputmode="decimal" data-champ="teteGH" aria-label="G, H" /></td><td><input type="text" inputmode="decimal" data-champ="teteGV" aria-label="G, V" /></td><td><input type="text" inputmode="decimal" data-champ="teteGM" aria-label="G, M" /></td></tr>
+                <tr><th>Variable Q</th><td><input type="text" inputmode="decimal" data-champ="teteQH" aria-label="Q, H" /></td><td><input type="text" inputmode="decimal" data-champ="teteQV" aria-label="Q, V" /></td><td><input type="text" inputmode="decimal" data-champ="teteQM" aria-label="Q, M" /></td></tr>
+              </tbody>
+            </table>
+          </fieldset>
+
+          <fieldset>
             <legend>Foundation</legend>
             <label>
               <span>Internal friction angle of the bearing soil φ’<sub>k</sub> (°)</span>
@@ -204,6 +223,14 @@
             <label>
               <span>Ratio δ<sub>k</sub> over φ’<sub>k</sub></span>
               <input type="text" inputmode="decimal" data-champ="deltaSurPhi" />
+            </label>
+            <label>
+              <span>Front earth height above the base (m)</span>
+              <input type="text" inputmode="decimal" data-champ="hAval" />
+            </label>
+            <label>
+              <span>Ground resistance σ<sub>R,d</sub> (kPa), optional</span>
+              <input type="text" inputmode="decimal" data-champ="sigmaRd" placeholder="none" />
             </label>
             <label>
               <span>Bearing mode</span>
@@ -288,8 +315,8 @@
           <fieldset>
             <legend>Out of scope</legend>
             <p class="note">
-              This tool does not cover groundwater, the shear key, sloping ground, backfill
-              cohesion, passive resistance in front of the toe, undrained analysis, serviceability
+              This tool does not cover groundwater, the shear key, sloping ground,
+              passive resistance in front of the toe, undrained analysis, serviceability
               states (cracking) and overall site stability.
             </p>
           </fieldset>

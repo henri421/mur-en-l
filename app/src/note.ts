@@ -17,11 +17,11 @@ const NORMES: Record<ResultatMur['generation'], string> = {
   '2e': 'EN 1997-1:2024, EN 1997-3:2025, EN 1990:2023, EN 1992-1-1:2023',
 };
 
-const MATERIAUX = new Set(['f_ck', 'f_yk', 'gamma_c', 'D_lower', 'gamma', "phi'", "phi'_b", 'delta/phi', "c'", 'gamma_b', 'q_Rd']);
+const MATERIAUX = new Set(['f_ck', 'f_yk', 'gamma_c', 'D_lower', 'gamma', "phi'", "phi'_b", 'delta/phi', "c'", 'gamma_b', 'q_Rd', "c'_r", 'σ_R,d']);
 const HYPOTHESES = new Set([
   'génération', 'generation', 'approche', 'approach', 'classe', 'class', 'dimensions', 'profondeur', 'depth',
   'source unique', 'single source', 'coefficients', 'factors',
-  'bloc du talon', 'heel block', 'méthode des bandes', 'strip method', 'frottement de base', 'base friction', "delta_p/phi'",
+  'bloc du talon', 'heel block', "delta_t/phi'", 'méthode des bandes', 'strip method', 'frottement de base', 'base friction', "delta_p/phi'",
 ]);
 
 type Section = 'geometrie' | 'materiaux' | 'hypotheses' | 'charges';
@@ -30,7 +30,7 @@ type Section = 'geometrie' | 'materiaux' | 'hypotheses' | 'charges';
 function sectionDe(symbole: string): Section {
   if (MATERIAUX.has(symbole)) return 'materiaux';
   if (HYPOTHESES.has(symbole) || estSymboleCoefficient(symbole)) return 'hypotheses';
-  if (/^(bande|strip) /.test(symbole) || symbole === 'q' || symbole === 'K_a' || symbole === 'K_a,voile') return 'charges';
+  if (/^(bande|strip|tête) /.test(symbole) || symbole === 'q' || symbole === 'K_a' || symbole === 'K_a,voile') return 'charges';
   return 'geometrie';
 }
 
@@ -66,6 +66,7 @@ function verificationsDe(r: ResultatMur): VerificationNote[] {
       verif(`${phrase(c.nom)} · ${t.note.glissement}`, `${g2 ? clauses.glissement2 : clauses.glissement1} · ${phrase(c.nom)}`, c.glissement.taux),
       verif(`${phrase(c.nom)} · ${t.note.portance}`, `${g2 ? clauses.portance2 : clauses.portance1} · ${phrase(c.nom)}`, c.portance.taux)
     );
+    if (c.contrainte) out.push(verif(`${phrase(c.nom)} · ${t.note.contrainte}`, `${clauses.contrainte} · ${phrase(c.contrainte.nom)}`, c.contrainte.taux));
   }
 
   const flexion = g2 ? '§8.1' : '§6.1';
@@ -92,6 +93,7 @@ interface TextesNote {
   renversement: string;
   glissement: string;
   portance: string;
+  contrainte: string;
   sections: string;
   glissementPortance: string;
   excentricite: string;

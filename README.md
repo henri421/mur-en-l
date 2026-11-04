@@ -61,6 +61,12 @@ Page publiée : <https://henri421.github.io/mur-en-l/> (en anglais : `/en/`).
   rupture pousse, ΔE_h = K tan ϑ q b', répartie en rectangle entre z₁ = a tan φ′ et
   z₂ = (a + b′) tan ϑ. Vérifiée sur le rapport MB (`docs/validation/mb-mur-type1.md`). Au repos,
   l'outil garde l'angle ϑ de la poussée active.
+- **Cohésion du remblai** : la poussée active est réduite de K_ch c′, sans descendre sous la
+  pression minimale de la DIN 4085 (φ = 40°) ; la poussée au repos n'est pas réduite.
+- **About du talon frottant**, en option : δ/φ′ sur l'épaisseur de la semelle, avec E_av.
+- **Terres devant le mur** : leur poids sur le patin compte, comme une action permanente du sol.
+- **Charges en tête du voile** : force horizontale, force verticale et moment, permanents ou variables.
+- **Contrainte sous la base**, si σ_R,d est saisi : σ_E,d = V_d / B′ ≤ σ_R,d, en plus de la portance.
 - **Part de K_a du voile**, en option : le voile peut être calculé au repos pendant que la stabilité
   externe reste en poussée active, comme le proposent Frilo et MB.
 - **Frottement de base**, en option : réparti comme la pression, avec un bras de demi-épaisseur ;
@@ -68,7 +74,7 @@ Page publiée : <https://henri421.github.io/mur-en-l/> (en anglais : `/en/`).
 
 ## Hors périmètre
 
-Nappe phréatique, bêche, talus incliné, cohésion du remblai, butée devant le patin, calcul non
+Nappe phréatique, bêche, talus incliné, butée devant le patin, sol d'assise stratifié (saisir des valeurs moyennes), calcul non
 drainé, états de service (fissuration), stabilité générale du site.
 
 ## Origine des moteurs

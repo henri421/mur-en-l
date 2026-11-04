@@ -82,9 +82,10 @@ glissement, portance et voile à moins de 3 % de Frilo, bandes mises à part.
 
 État au 2026-11-04 : point 3 fait pour la DIN 4085 en répartition rectangulaire, d'après le rapport
 MB (`docs/validation/mb-mur-type1.md`) ; restent le trapèze et l'angle ϑ₀ au repos, qui demandent le
-texte de la DIN 4085. Part de K_a séparée pour le voile, faite. Le banc MB ajoute au lot L4 la
-cohésion du remblai avec pression minimale (DIN 4085, K_min) : c'est le premier écart restant sur la
-stabilité externe.
+texte de la DIN 4085. Part de K_a séparée pour le voile, faite. Cohésion du remblai avec pression
+minimale, δ sur l'about, terres sur le patin, charges en tête (G et Q) et contrainte sous la base
+σ_R,d : faits le 2026-11-04 ; le mur MB est retrouvé à 2 % sur la stabilité externe. Restent les
+actions variables multiples avec ψ₀ (Frilo) et la moyenne DIN 4017 des couches du sol d'assise.
 
 1. **Actions variables multiples** : catégorie (EN 1990 tableau A1.1), ψ₀, ψ₁, ψ₂ ; combinaisons
    6.10 avec action dominante et concomitantes, énumérées comme le fait Frilo (12 combinaisons pour

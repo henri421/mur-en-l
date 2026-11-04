@@ -147,7 +147,7 @@ export interface Fondation {
   /**
    * Resistance de calcul du terrain sous la base sigma_R,d (kPa), en plus de la
    * portance : sigma_E,d = V_d / B' <= sigma_R,d, comme la verification du
-   * « Sohlwiderstand » de la DIN 1054:2010 (A 6.10), valeur du rapport geotechnique.
+   * « Sohlwiderstand » de la DIN 1054:2010, valeur du rapport geotechnique.
    */
   sigmaRd?: number;
 }

@@ -635,3 +635,8 @@ table.coefficients td, table.coefficients th { padding: 2px 4px; text-align: lef
 table.coefficients td.n, table.coefficients th.n { text-align: right; }
 table.coefficients tr.groupe-coef th { padding-top: 8px; font-weight: 600; border-bottom: 1px solid var(--bordure-douce); }
 table.coefficients input { width: 5.5em; }
+
+/* Charges en tete du voile : deux lignes, trois efforts. */
+table.tete { width: 100%; border-collapse: collapse; }
+table.tete th, table.tete td { padding: 2px 4px; text-align: left; font-weight: normal; }
+table.tete input { width: 5.5em; }

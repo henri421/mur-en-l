@@ -85,6 +85,20 @@ export function verdictsHtml(r: ResultatMur): string {
         `${sym('V_d')} = ${aff(cP.portance.V, 1)} ${t.unités.kN} ≤ ` +
         `${sym('R_d')} = ${aff(cP.portance.R_d, 1)} ${t.unités.kN}`,
     }),
+    ...(() => {
+      const avec = r.combinaisons.filter((c) => c.contrainte);
+      if (avec.length === 0) return [];
+      const cS = pire(avec, (c) => c.contrainte?.taux ?? 0);
+      const k = cS.contrainte as NonNullable<ResultatCombinaison['contrainte']>;
+      return [
+        carte({
+          nom: t.noms.contrainte,
+          clause: `${t.clauses.contrainte} · ${phrase(k.nom)}`,
+          taux: k.taux,
+          detail: `${sym('σ_E,d')} = ${aff(k.sigmaEd, 1)} ${t.unités.kPa} ≤ ${sym('σ_R,d')} = ${aff(k.sigmaRd, 1)} ${t.unités.kPa}`,
+        }),
+      ];
+    })(),
     carte({
       nom: t.noms.excentricite,
       clause: g2 ? t.clauses.excentricite2 : t.clauses.excentricite1,
@@ -385,6 +399,12 @@ export function blocEntrees(calcul: Calcul): BlocResultat {
   ligne('K_a', e.partKa, `${aff((remblai.partKa ?? 1) * 100, 0)} %`);
   if (remblai.partKaVoile !== undefined) ligne('K_a,voile', e.partKaVoile, `${aff(remblai.partKaVoile * 100, 0)} %`);
   ligne("delta_p/phi'", e.deltaParement, aff(remblai.deltaParement ?? 0, 3));
+  ligne("c'_r", e.cRemblai, `${aff(remblai.c ?? 0, 1)} kPa`);
+  ligne("delta_t/phi'", e.deltaAbout, aff(remblai.deltaAbout ?? 0, 3));
+  ligne('h_aval', e.hAval, `${aff(d.hAval ?? 0, 3)} m`);
+  (d.chargesTete ?? []).forEach((ch) => {
+    ligne(`tête ${ch.nature}`, e.chargeTete(ch.nature), `H = ${aff(ch.H, 2)} kN/m ; V = ${aff(ch.V, 2)} kN/m ; M = ${aff(ch.M, 2)} kN·m/m`);
+  });
   ligne(e.symboleMethodeBandes, e.methodeBandes, e.methodes[remblai.methodeBandes ?? 'diffusion']);
   (remblai.charges ?? []).forEach((ch, i) => {
     ligne(e.symboleBande(i + 1), e.bande(i + 1), e.valeurBande(ch.nature, aff(ch.q, 1), aff(ch.distance, 2), aff(ch.largeur, 2)));
@@ -394,6 +414,7 @@ export function blocEntrees(calcul: Calcul): BlocResultat {
   ligne("phi'_b", e.fondationPhi, `${aff(fondation.phi, 1)} °`);
   ligne('delta/phi', e.deltaSurPhi, aff(fondation.deltaSurPhi, 2));
   const portance = fondation.portance;
+  if (fondation.sigmaRd !== undefined) ligne('σ_R,d', e.sigmaRd, `${aff(fondation.sigmaRd, 1)} kPa`);
   if (portance.mode === 'annexeD') {
     ligne("c'", e.portanceC, `${aff(portance.c, 1)} kPa`);
     ligne('gamma_b', e.portanceGamma, `${aff(portance.gamma, 2)} kN/m³`);
@@ -432,6 +453,13 @@ function blocCombinaison(c: ResultatCombinaison): BlocResultat {
       { symbole: "B'", libelle: n.portance, valeur: `${aff(c.portance.Bp, 3)} m` },
       { symbole: 'R_d', libelle: n.portance, valeur: `${aff(c.portance.R_d)} kN` },
       { symbole: taux, libelle: n.portance, valeur: tauxAffiche(c.portance.taux) },
+      ...(c.contrainte
+        ? [
+            { symbole: 'σ_E,d', libelle: n.contrainte, valeur: `${aff(c.contrainte.sigmaEd)} kPa` },
+            { symbole: 'σ_R,d', libelle: n.contrainte, valeur: `${aff(c.contrainte.sigmaRd)} kPa` },
+            { symbole: taux, libelle: n.contrainte, valeur: tauxAffiche(c.contrainte.taux) },
+          ]
+        : []),
     ],
     note: null,
   };
