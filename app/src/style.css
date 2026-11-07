@@ -58,7 +58,8 @@ body {
 
 header,
 main,
-footer {
+footer,
+.feuilles {
   max-width: 68rem;
   margin: 0 auto;
   padding: 0 1rem;
@@ -628,3 +629,11 @@ svg .contrainte-fleche { stroke: var(--compression); stroke-width: 1; }
 svg .meyer { fill: none; stroke: var(--traction); stroke-dasharray: 5 3; stroke-width: 1.5; }
 svg .legende { fill: var(--texte-faible); font-size: 11px; font-family: var(--sans); }
 
+
+/* Barre des feuilles de calcul (projets de la suite) : alignee sur la page. */
+.feuilles {
+  margin-top: 0.8rem;
+}
+.feuilles:empty {
+  display: none;
+}

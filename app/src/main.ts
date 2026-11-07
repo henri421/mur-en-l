@@ -8,6 +8,7 @@
 
 import {
   blocsEnTexte,
+  brancherFeuilles,
   definirLangue,
   echapper,
   langueDuDocument,
@@ -17,6 +18,8 @@ import {
   resultatsEnCsv,
   svgAutonome,
   telecharger,
+  type BarreFeuilles,
+  type Json,
 } from 'aedificium-ui';
 import type { ResultatMur } from '../../src/index';
 import { lireSaisie, relire, saisieParDefaut, serialiser, verifier, type Calcul, type Saisie } from './form';
@@ -85,6 +88,12 @@ function lireCartouche(): { projet: string; element: string } {
 }
 
 let saisie: Saisie = charger() ?? saisieParDefaut();
+
+/**
+ * Feuilles de calcul d'un projet de la suite. Dans un projet, chaque saisie
+ * va dans la feuille courante, pas dans la memoire « hors projet » de l'app.
+ */
+let barre: BarreFeuilles | null = null;
 
 interface Dernier {
   calcul: Calcul;
@@ -202,7 +211,8 @@ function viderResultats(): void {
 }
 
 function recalculer(): void {
-  memoriser();
+  if (barre?.dansUnProjet()) barre.signaler();
+  else memoriser();
   ajusterGeneration();
   ajusterModePortance();
   const lecture = lireSaisie(saisie);
@@ -349,6 +359,33 @@ exige<HTMLElement>('#sorties').addEventListener('input', () => {
   } catch {
     // Stockage indisponible : la page fonctionne sans.
   }
+});
+
+/** Champ de saisie d'un chemin de feuille : `beton/classe` → `[data-champ="beton.classe"]`. */
+const champDuChemin = (chemin: string): HTMLElement | null =>
+  chemin === 'bandes'
+    ? zones.bandes.closest<HTMLElement>('fieldset')
+    : formulaire.querySelector<HTMLElement>(`[data-champ="${chemin.split('/').join('.')}"]`);
+
+barre = brancherFeuilles({
+  app: 'mur-en-l',
+  nomApp: exige<HTMLElement>('header h1').textContent ?? 'mur-en-l',
+  conteneur: exige<HTMLElement>('[data-role="feuilles"]'),
+  lire: () => JSON.parse(serialiser(saisie)) as Json,
+  charger: (d) => {
+    saisie = d === null ? saisieParDefaut() : relire(JSON.stringify(d));
+    ecrireSaisie();
+    recalculer();
+  },
+  libelle: (chemin) => {
+    const e = champDuChemin(chemin);
+    const t = e?.closest('label')?.querySelector('span')?.textContent ?? e?.querySelector('legend')?.textContent;
+    return (t ?? '').trim();
+  },
+  marquer: (chemins) => {
+    for (const e of document.querySelectorAll('.af-propre')) e.classList.remove('af-propre');
+    for (const c of chemins) champDuChemin(c)?.classList.add('af-propre');
+  },
 });
 
 ecrireSaisie();
