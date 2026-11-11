@@ -11,6 +11,7 @@ import type { Calcul } from './form';
 import { coupe, projectionSvg, vuesDisponibles } from './dessin';
 import { phrase, textes } from './textes';
 import { blocEntrees, blocsCalcul, messageDErreur } from './vue';
+import { VERSION_OUTIL } from './version';
 
 const NORMES: Record<ResultatMur['generation'], string> = {
   '1re': 'EN 1997-1:2004, EN 1992-1-1:2004',
@@ -141,6 +142,7 @@ export function noteDuCalcul(
 
   return {
     cartouche: {
+      version: VERSION_OUTIL,
       projet: cartouche.projet,
       element: cartouche.element.trim() === '' ? n.element : cartouche.element,
       date: cartouche.date,
