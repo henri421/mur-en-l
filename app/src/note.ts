@@ -5,6 +5,7 @@
  * (`blocEntrees`) et du resultat du noyau ; elles ne sont ici que rangees.
  */
 
+import { avertissement2eGeneration } from 'aedificium-ui';
 import type { ElementNote, LigneResultat, NoteDeCalcul, VerificationNote } from 'aedificium-ui';
 import type { ResultatMur, VerifSection } from '../../src/mur';
 import type { Calcul } from './form';
@@ -160,6 +161,6 @@ export function noteDuCalcul(
       calculs,
     },
     verifications: verificationsDe(r),
-    avertissements: r.avertissements.map(messageDErreur),
+    avertissements: [...(r.generation === '2e' ? [avertissement2eGeneration()] : []), ...r.avertissements.map(messageDErreur)],
   };
 }
