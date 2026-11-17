@@ -3,7 +3,8 @@
  * tout vient du resultat du noyau (`src/mur.ts`) ou du calcul (`form.ts`).
  */
 
-import { type BlocResultat, nombreAffiche, notationHtml, tauxAffiche } from 'aedificium-ui';
+import { type BlocResultat, libelleAnnexe, nombreAffiche, notationHtml, tauxAffiche, traduireSource } from 'aedificium-ui';
+import { alphaCcDe } from './annexe';
 import type { ResultatCombinaison, ResultatMur } from '../../src/mur';
 import type { Calcul } from './form';
 import { phrase, textes } from './textes';
@@ -259,6 +260,9 @@ export function blocEntrees(calcul: Calcul): BlocResultat {
   ligne(e.symboleGeneration, e.generation, t.generations[calcul.generation]);
   if (calcul.generation === '1re') {
     ligne(e.symboleApproche, e.approche, calcul.donnees.approche);
+    ligne(e.symboleAnnexe, e.annexe, libelleAnnexe(calcul.annexe));
+    const acc = alphaCcDe(calcul.annexe);
+    ligne('α_cc', `${e.alphaCc} (${traduireSource(acc.source)})`, nombreAffiche(acc.valeur, 2));
   } else {
     const x = calcul.donnees;
     ligne(e.symboleApproche, e.approche, APPROCHES_2E[x.approche]);

@@ -65,6 +65,9 @@ const FR = {
     entrees: {
       symboleGeneration: 'génération',
       symboleApproche: 'approche',
+      annexe: 'Annexe nationale',
+      symboleAnnexe: 'annexe',
+      alphaCc: 'Coefficient des effets à long terme sur f_cd',
       symboleClasse: 'classe',
       symboleDimensions: 'dimensions',
       symboleProfondeur: 'profondeur',
@@ -230,6 +233,9 @@ const EN: Textes = {
     entrees: {
       symboleGeneration: 'generation',
       symboleApproche: 'approach',
+      annexe: 'National Annex',
+      symboleAnnexe: 'annex',
+      alphaCc: 'Long-term effects coefficient on f_cd',
       symboleClasse: 'class',
       symboleDimensions: 'dimensions',
       symboleProfondeur: 'depth',

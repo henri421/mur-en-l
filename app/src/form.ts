@@ -7,10 +7,10 @@
  * conserves quand l'autre est active, simplement ignores.
  */
 
-import { langueCourante, lireNombre } from 'aedificium-ui';
+import { langueCourante, lireAnnexe, lireNombre, type AnnexeNationale } from 'aedificium-ui';
+import { normeEc2De, profilMurDe } from './annexe';
 import {
   profil2eRecommande,
-  profilRecommande,
   verifierMur,
   verifierMur2e,
 } from '../../src/index';
@@ -40,6 +40,8 @@ export interface BandeSaisie {
 export interface Saisie {
   generation: Generation;
   approche1: Approche1;
+  /** Annexe nationale de la 1re generation (lot E). */
+  annexe: AnnexeNationale;
   approche2: Approche2;
   consequences: ClasseConsequences;
   dimensionsControlees: boolean;
@@ -78,6 +80,7 @@ export function saisieParDefaut(): Saisie {
   return {
     generation: '1re',
     approche1: 'DA1',
+    annexe: 'recommande',
     approche2: 'a+b',
     consequences: 'CC2',
     dimensionsControlees: false,
@@ -119,7 +122,7 @@ type Donnees2e = Parameters<typeof verifierMur2e>[0];
 export type Barres = Record<'voileArriere' | 'voileAvant' | 'semelleHaut' | 'semelleBas', ArmatureSaisie>;
 
 export type Calcul =
-  | { generation: '1re'; donnees: Donnees1re; barres: Barres }
+  | { generation: '1re'; donnees: Donnees1re; barres: Barres; annexe: AnnexeNationale }
   | { generation: '2e'; donnees: Donnees2e; barres: Barres };
 
 export type Lecture = { ok: true; calcul: Calcul } | { ok: false; message: string };
@@ -223,6 +226,7 @@ export function lireSaisie(s: Saisie): Lecture {
           generation: '1re',
           donnees: { ...communes, approche: s.approche1 as Donnees1re['approche'] },
           barres,
+          annexe: lireAnnexe(s.annexe),
         },
       };
     }
@@ -250,7 +254,7 @@ export function lireSaisie(s: Saisie): Lecture {
 
 export function verifier(calcul: Calcul): ResultatMur {
   return calcul.generation === '1re'
-    ? verifierMur(calcul.donnees, profilRecommande())
+    ? verifierMur(calcul.donnees, profilMurDe(calcul.annexe), normeEc2De(calcul.annexe))
     : verifierMur2e(calcul.donnees, profil2eRecommande());
 }
 
@@ -300,6 +304,7 @@ export function relire(contenu: string): Saisie {
   return {
     generation: choixOu(brut.generation, ['1re', '2e'] as const, d.generation),
     approche1: choixOu(brut.approche1, ['DA1', 'DA2', 'DA3'] as const, d.approche1),
+    annexe: lireAnnexe(brut.annexe),
     approche2: choixOu(brut.approche2, ['a+b', 'c', 'd'] as const, d.approche2),
     consequences: choixOu(brut.consequences, ['CC1', 'CC2', 'CC3'] as const, d.consequences),
     dimensionsControlees: brut.dimensionsControlees === true,

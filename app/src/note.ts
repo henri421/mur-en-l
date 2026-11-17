@@ -5,7 +5,7 @@
  * (`blocEntrees`) et du resultat du noyau ; elles ne sont ici que rangees.
  */
 
-import { avertissement2eGeneration } from 'aedificium-ui';
+import { avertissement2eGeneration, avertissementAnnexeLu } from 'aedificium-ui';
 import type { ElementNote, LigneResultat, NoteDeCalcul, VerificationNote } from 'aedificium-ui';
 import type { ResultatMur, VerifSection } from '../../src/mur';
 import type { Calcul } from './form';
@@ -20,7 +20,7 @@ const NORMES: Record<ResultatMur['generation'], string> = {
 };
 
 const MATERIAUX = new Set(['f_ck', 'f_yk', 'gamma_c', 'D_lower', 'gamma', "phi'", "phi'_b", 'delta/phi', "c'", 'gamma_b', 'q_Rd']);
-const HYPOTHESES = new Set(['génération', 'generation', 'approche', 'approach', 'classe', 'class', 'dimensions', 'profondeur', 'depth']);
+const HYPOTHESES = new Set(['génération', 'generation', 'approche', 'approach', 'annexe', 'annex', 'α_cc', 'classe', 'class', 'dimensions', 'profondeur', 'depth']);
 
 type Section = 'geometrie' | 'materiaux' | 'hypotheses' | 'charges';
 
@@ -147,7 +147,10 @@ export function noteDuCalcul(
       projet: cartouche.projet,
       element: cartouche.element.trim() === '' ? n.element : cartouche.element,
       date: cartouche.date,
-      norme: NORMES[r.generation],
+      norme:
+        calcul.generation === '1re' && calcul.annexe === 'lu'
+          ? 'EN 1997-1:2004, EN 1992-1-1:2004, AN-LU:2020 (ILNAS)'
+          : NORMES[r.generation],
       outil: 'mur-en-l',
     },
     sections: {
@@ -161,6 +164,8 @@ export function noteDuCalcul(
       calculs,
     },
     verifications: verificationsDe(r),
-    avertissements: [...(r.generation === '2e' ? [avertissement2eGeneration()] : []), ...r.avertissements.map(messageDErreur)],
+    avertissements: [
+      ...(r.generation === '2e' ? [avertissement2eGeneration()] : []),
+      ...(calcul.generation === '1re' && calcul.annexe === 'lu' && avertissementAnnexeLu() !== '' ? [avertissementAnnexeLu()] : []), ...r.avertissements.map(messageDErreur)],
   };
 }

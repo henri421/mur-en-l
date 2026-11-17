@@ -683,12 +683,12 @@ function nombreAffiche(valeur: number): string {
  * tranchant du voile, du patin et du talon (EN 1992-1-1 §6.1, §6.2.2, moteur
  * section-uls), armature minimale (§9.2.1.1).
  */
-export function verifierMur(d: DonneesMur, profil: ProfilMur): ResultatMur {
+export function verifierMur(d: DonneesMur, profil: ProfilMur, norme: NormProfile = ec2Recommended()): ResultatMur {
   verifierProfil(profil);
   verifierDonnees(d);
   const b = blocs(d);
 
-  const norme = ec2Recommended();
+  // Profil EC2 fourni par l'outil (annexe nationale, lot E) ; recommande par defaut.
   const ctx: ContexteSection = {
     beton: createConcrete(d.armatures.fck, norme),
     acier: createSteel(d.armatures.fyk, E_S, norme),
