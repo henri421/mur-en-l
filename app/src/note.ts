@@ -166,6 +166,6 @@ export function noteDuCalcul(
     verifications: verificationsDe(r),
     avertissements: [
       ...(r.generation === '2e' ? [avertissement2eGeneration()] : []),
-      ...(calcul.generation === '1re' && calcul.annexe === 'lu' && avertissementAnnexeLu() !== '' ? [avertissementAnnexeLu()] : []), ...r.avertissements.map(messageDErreur)],
+      ...(calcul.generation === '1re' && calcul.annexe === 'lu' && avertissementAnnexeLu(false) !== '' ? [avertissementAnnexeLu(false)] : []), ...r.avertissements.map(messageDErreur)],
   };
 }

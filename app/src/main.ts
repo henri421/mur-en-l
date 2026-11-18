@@ -168,7 +168,7 @@ function ajusterGeneration(): void {
   }
   const bandeauLu = document.querySelector<HTMLElement>('[data-role="bandeau-annexe"]');
   if (bandeauLu !== null) {
-    bandeauLu.textContent = avertissementAnnexeLu();
+    bandeauLu.textContent = avertissementAnnexeLu(false);
     bandeauLu.hidden = saisie.generation !== '1re' || saisie.annexe !== 'lu' || bandeauLu.textContent === '';
   }
   for (const g of formulaire.querySelectorAll<HTMLElement>('[data-groupe]')) {
