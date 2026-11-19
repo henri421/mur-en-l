@@ -14,7 +14,7 @@ import {
   definirLangue,
   echapper,
   langueDuDocument,
-  noteDeCalculHtml,
+  noteDeCalculHtml, telechargerNotePdf,
   notationHtml,
   ouvrirOuTelecharger,
   resultatsEnCsv,
@@ -331,9 +331,12 @@ document.addEventListener('click', (evenement) => {
   } else if (action === 'exporter-resultats') {
     const blocs = [blocEntrees(d.calcul), ...blocsResultat(d.resultat)];
     telecharger('mur-en-l-resultats.csv', resultatsEnCsv(blocsEnTexte(blocs)), 'text/csv;charset=utf-8');
-  } else if (action === 'exporter-note') {
+  } else if (action === 'exporter-note' || action === 'exporter-note-pdf') {
     const note = noteDuCalcul(d.calcul, d.resultat, cartouche());
-    ouvrirOuTelecharger('mur-en-l-note.html', noteDeCalculHtml(note, STYLES_TRACE));
+    const noteCalc = note;
+    // PDF construit au clic ; en cas d'echec, la note HTML prend le relais.
+    if (action === 'exporter-note-pdf') void telechargerNotePdf('mur-en-l-note.pdf', noteCalc, STYLES_TRACE).catch(() => ouvrirOuTelecharger('mur-en-l-note.html', noteDeCalculHtml(noteCalc, STYLES_TRACE)));
+    else ouvrirOuTelecharger('mur-en-l-note.html', noteDeCalculHtml(noteCalc, STYLES_TRACE));
   }
 });
 
